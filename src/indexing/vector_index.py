@@ -10,6 +10,7 @@ import logging
 
 import chromadb
 import numpy as np
+from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +93,8 @@ class VectorIndex:
 
         # ChromaDB limits batch size; upsert in chunks of 5000.
         batch_size = 5000
-        for start in range(0, len(ids), batch_size):
+        batch_ranges = list(range(0, len(ids), batch_size))
+        for start in tqdm(batch_ranges, desc="Upserting chunks", unit="batch"):
             end = start + batch_size
             self._collection.upsert(
                 ids=ids[start:end],
@@ -101,7 +103,7 @@ class VectorIndex:
             )
 
         logger.info(
-            "Built index '%s' with %d chunks.", COLLECTION_NAME, len(ids)
+            "Built index: %d chunks in %s", len(ids), self._persist_dir
         )
 
     def query(

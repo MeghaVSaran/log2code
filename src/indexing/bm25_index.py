@@ -18,6 +18,24 @@ logger = logging.getLogger(__name__)
 # Regex that splits on whitespace and common C++ punctuation / operators.
 _SPLIT_RE = re.compile(r"[\s()\{\};,<>*&:./]+|->|::")
 
+# Regex for CamelCase boundary detection.
+# Matches transitions like "Str|Cat", "Make|Span", "BM25|Okapi"
+_CAMEL_RE = re.compile(r'(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])')
+
+
+def _split_camel(token: str) -> List[str]:
+    """Split a CamelCase token into sub-parts.
+
+    Examples:
+        "StrCat"     → ["str", "cat"]
+        "MakeSpan"   → ["make", "span"]
+        "getNode"    → ["get", "node"]
+        "BM25Okapi"  → ["bm", "25", "okapi"]
+        "str_cat"    → ["str_cat"]  (no CamelCase, returned as-is)
+    """
+    parts = _CAMEL_RE.sub(' ', token).split()
+    return [p.lower() for p in parts if len(p) >= 2]
+
 
 class BM25Index:
     """Sparse BM25 retrieval over code chunk texts."""
@@ -117,8 +135,8 @@ class BM25Index:
 
         Splits on whitespace and common C++ operators/punctuation.
         Filters out tokens shorter than 2 characters and pure-numeric
-        tokens.  Lowercases everything.  Keeps CamelCase and snake_case
-        identifiers intact (just lowered).
+        tokens.  Lowercases everything.  Also splits CamelCase tokens
+        into sub-parts so that ``StrCat`` matches ``str_cat``.
 
         Args:
             text: Raw code or query text.
@@ -129,12 +147,27 @@ class BM25Index:
         raw_tokens = _SPLIT_RE.split(text)
         tokens: List[str] = []
         for tok in raw_tokens:
-            tok = tok.strip().lower()
+            tok = tok.strip()
             if len(tok) < 2:
                 continue
-            if tok.isdigit():
+            lowered = tok.lower()
+            if lowered.isdigit():
                 continue
-            tokens.append(tok)
+
+            # Always emit the full lowered token.
+            tokens.append(lowered)
+
+            # Also emit CamelCase sub-parts if present.
+            camel_parts = _split_camel(tok)
+            if len(camel_parts) > 1:
+                tokens.extend(camel_parts)
+
+            # Also split snake_case tokens (e.g. str_cat → [str, cat]).
+            if '_' in lowered:
+                snake_parts = [p for p in lowered.split('_') if len(p) >= 2]
+                if len(snake_parts) > 1:
+                    tokens.extend(snake_parts)
+
         return tokens
 
     def debug_tokenize(self, text: str) -> List[str]:

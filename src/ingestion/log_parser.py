@@ -101,9 +101,21 @@ class ParsedLog:
     def query_text(self) -> str:
         """Return text to use as retrieval query (log embedder input).
 
-        Format: error_message + space-joined identifiers + file hints.
+        Format: error_message + identifiers (with CamelCase expansion)
+        + file hints.
         """
-        parts = [self.error_message] + self.identifiers + self.file_hints
+        # Expand CamelCase identifiers so "StrCat" becomes
+        # "StrCat str cat", giving BM25 more matching surface.
+        expanded = list(self.identifiers)
+        for ident in self.identifiers:
+            parts = re.sub(
+                r'(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])',
+                ' ', ident,
+            ).split()
+            if len(parts) > 1:
+                expanded.extend(p.lower() for p in parts if len(p) >= 2)
+
+        parts = [self.error_message] + expanded + self.file_hints
         return " ".join(parts)
 
 

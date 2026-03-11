@@ -101,9 +101,9 @@ class ParsedLog:
     def query_text(self) -> str:
         """Return text to use as retrieval query (log embedder input).
 
-        Format: error_message + space-joined identifiers.
+        Format: error_message + space-joined identifiers + file hints.
         """
-        parts = [self.error_message] + self.identifiers
+        parts = [self.error_message] + self.identifiers + self.file_hints
         return " ".join(parts)
 
 

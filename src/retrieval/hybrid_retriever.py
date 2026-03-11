@@ -12,8 +12,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-DENSE_WEIGHT = 0.6
-SPARSE_WEIGHT = 0.4
+DENSE_WEIGHT = 0.5
+SPARSE_WEIGHT = 0.5
 DEFAULT_CANDIDATES = 20   # fetch this many from each index before fusion
 DEFAULT_TOP_K = 5
 

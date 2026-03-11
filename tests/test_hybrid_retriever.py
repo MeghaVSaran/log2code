@@ -94,7 +94,7 @@ class TestFusionMath:
             assert 0.0 <= r.bm25_score <= 1.0 + 1e-6
 
     def test_fusion_weights(self):
-        """Fused score should equal 0.6 * dense + 0.4 * bm25."""
+        """Fused score should equal 0.5 * dense + 0.5 * bm25."""
         retriever = HybridRetriever(
             FakeVectorIndex(DENSE_RESULTS),
             FakeBM25Index(BM25_RESULTS),

@@ -16,7 +16,7 @@ from rank_bm25 import BM25Okapi
 logger = logging.getLogger(__name__)
 
 # Regex that splits on whitespace and common C++ punctuation / operators.
-_SPLIT_RE = re.compile(r"[\s()\{\};,<>*&:.]+|->|::")
+_SPLIT_RE = re.compile(r"[\s()\{\};,<>*&:./]+|->|::")
 
 
 class BM25Index:
@@ -136,3 +136,10 @@ class BM25Index:
                 continue
             tokens.append(tok)
         return tokens
+
+    def debug_tokenize(self, text: str) -> List[str]:
+        """Public wrapper around _tokenize for debugging.
+
+        Useful for inspecting how identifiers and code text are split.
+        """
+        return self._tokenize(text)

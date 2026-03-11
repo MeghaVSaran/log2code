@@ -180,7 +180,7 @@ def _node_to_chunk(
     )
 
     return Chunk(
-        chunk_id=f"{rel_path}::{func_name}",
+        chunk_id=f"{rel_path}::{func_name}::L{start_line}",
         file_path=rel_path,
         function_name=func_name,
         start_line=start_line,

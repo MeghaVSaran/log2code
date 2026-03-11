@@ -43,7 +43,7 @@ class TestSimpleFunction:
     def test_chunk_id_format(self, tmp_path, cpp_parser):
         f = _write_cpp(tmp_path, "simple.cpp", self.CODE)
         chunk = parse_file(f, tmp_path, parser=cpp_parser)[0]
-        assert chunk.chunk_id == "simple.cpp::foo"
+        assert chunk.chunk_id == "simple.cpp::foo::L1"
 
     def test_line_numbers(self, tmp_path, cpp_parser):
         f = _write_cpp(tmp_path, "simple.cpp", self.CODE)
@@ -82,7 +82,7 @@ void Parser::resolveSymbol(int x) {
     def test_chunk_id(self, tmp_path, cpp_parser):
         f = _write_cpp(tmp_path, "parser.cpp", self.CODE)
         chunk = parse_file(f, tmp_path, parser=cpp_parser)[0]
-        assert chunk.chunk_id == "parser.cpp::Parser::resolveSymbol"
+        assert chunk.chunk_id == "parser.cpp::Parser::resolveSymbol::L1"
 
 
 # ---------------------------------------------------------------------------

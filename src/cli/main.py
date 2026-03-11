@@ -44,7 +44,8 @@ def cli():
 @click.option("--repo", required=True, type=click.Path(exists=True), help="Path to C++ repository.")
 @click.option("--force-reindex", is_flag=True, default=False, help="Rebuild index even if it exists.")
 @click.option("--device", default="cpu", type=click.Choice(["cpu", "cuda"]), help="Device for embedding.")
-def index(repo, force_reindex, device):
+@click.option("--include-tests", is_flag=True, default=False, help="Include test/benchmark files in index.")
+def index(repo, force_reindex, device, include_tests):
     """Index a C++ repository for log-to-code retrieval."""
     try:
         import torch
@@ -75,7 +76,9 @@ def index(repo, force_reindex, device):
         from src.ingestion.code_parser import parse_repository
 
         click.echo("Parsing C++ files...")
-        chunks = parse_repository(repo_path)
+        if not include_tests:
+            click.echo("  (excluding test/benchmark files; use --include-tests to keep them)")
+        chunks = parse_repository(repo_path, include_tests=include_tests)
         if not chunks:
             click.echo("No C++ files found in repository.", err=True)
             sys.exit(1)

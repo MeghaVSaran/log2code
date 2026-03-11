@@ -19,6 +19,16 @@ logger = logging.getLogger(__name__)
 
 CPP_EXTENSIONS = {".cpp", ".cc", ".cxx", ".c", ".h", ".hpp", ".hxx"}
 
+# Patterns that identify test / benchmark files.  Any file whose
+# forward-slashed relative path contains one of these substrings is
+# excluded from indexing by default.
+EXCLUDE_PATTERNS = [
+    "_test.cc", "_test.cpp", "_test.h",
+    "test_", "tests/", "/test/",
+    "_unittest.cc", "_benchmark.cc",
+    "_bench.cc", "benchmark/",
+]
+
 # Initialise the tree-sitter C++ language and parser once at module level.
 _CPP_LANGUAGE = tree_sitter.Language(tree_sitter_cpp.language())
 _PARSER = tree_sitter.Parser(_CPP_LANGUAGE)
@@ -36,19 +46,30 @@ class Chunk:
     language: str = "cpp"
 
 
+def _is_test_file(rel_path: str) -> bool:
+    """Return *True* if *rel_path* matches any EXCLUDE_PATTERNS entry."""
+    lower = rel_path.lower()
+    return any(pat in lower for pat in EXCLUDE_PATTERNS)
+
+
 def parse_repository(
     repo_path: Path,
     parser: tree_sitter.Parser = None,
+    include_tests: bool = False,
 ) -> List[Chunk]:
     """Parse all C++ files in a repository into function-level chunks.
 
     Walks the directory tree, parsing every file whose extension is in
     CPP_EXTENSIONS.  Files that fail to parse are logged and skipped.
 
+    By default, test and benchmark files are excluded (see
+    ``EXCLUDE_PATTERNS``).  Set *include_tests* to ``True`` to keep them.
+
     Args:
         repo_path: Path to the root of the C++ repository.
         parser: Optional pre-initialised tree-sitter Parser.
                 Uses the module-level ``_PARSER`` when *None*.
+        include_tests: If True, include test/benchmark files.
 
     Returns:
         List of Chunk objects, one per function found.
@@ -58,13 +79,20 @@ def parse_repository(
     repo_path = Path(repo_path).resolve()
     all_chunks: List[Chunk] = []
     files_parsed = 0
+    files_skipped = 0
 
     for ext in CPP_EXTENSIONS:
         for file_path in repo_path.rglob(f"*{ext}"):
+            rel = str(file_path.relative_to(repo_path)).replace("\\", "/")
+            if not include_tests and _is_test_file(rel):
+                files_skipped += 1
+                continue
             chunks = parse_file(file_path, repo_path, parser=parser)
             all_chunks.extend(chunks)
             files_parsed += 1
 
+    if files_skipped:
+        logger.info("Skipped %d test/benchmark files", files_skipped)
     logger.info(
         "Parsed %d C++ files → %d function chunks",
         files_parsed,

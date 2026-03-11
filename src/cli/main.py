@@ -43,9 +43,23 @@ def cli():
 @cli.command()
 @click.option("--repo", required=True, type=click.Path(exists=True), help="Path to C++ repository.")
 @click.option("--force-reindex", is_flag=True, default=False, help="Rebuild index even if it exists.")
-def index(repo, force_reindex):
+@click.option("--device", default="cpu", type=click.Choice(["cpu", "cuda"]), help="Device for embedding.")
+def index(repo, force_reindex, device):
     """Index a C++ repository for log-to-code retrieval."""
     try:
+        import torch
+
+        # Auto-detect / validate device.
+        if device == "cuda":
+            if torch.cuda.is_available():
+                gpu_name = torch.cuda.get_device_name(0)
+                click.echo(f"Using device: cuda ({gpu_name})")
+            else:
+                click.echo("Warning: CUDA requested but not available. Falling back to CPU.")
+                device = "cpu"
+        if device == "cpu":
+            click.echo("Using device: cpu")
+
         repo_path = Path(repo).resolve()
         debugaid_path = repo_path / DEBUGAID_DIR
 
@@ -71,7 +85,7 @@ def index(repo, force_reindex):
         from src.embeddings.code_embedder import CodeEmbedder
 
         click.echo("Embedding code chunks (this may take a while)...")
-        embedder = CodeEmbedder()
+        embedder = CodeEmbedder(device=device)
         embeddings = embedder.embed_chunks(chunks)
         click.echo(f"  Embedded {len(embeddings)} chunks")
 

@@ -1,3 +1,4 @@
+Random_or_Additional_stuff/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -218,3 +219,4 @@ __marimo__/
 .log2code/ 
 .log2code/ 
 data/raw/ 
+data/processed/*.tmp

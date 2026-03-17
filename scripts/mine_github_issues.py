@@ -68,6 +68,20 @@ _ERROR_TYPE_PATTERNS: List[tuple[str, re.Pattern[str]]] = [
     ("template_error", re.compile(
         r"(?:implicit instantiation of undefined template|undefined template)",
         re.IGNORECASE)),
+    ("asan_error", re.compile(
+        r"heap-buffer-overflow on address", re.IGNORECASE)),
+    ("asan_error", re.compile(
+        r"use-after-free on address", re.IGNORECASE)),
+    ("asan_error", re.compile(
+        r"stack-buffer-overflow", re.IGNORECASE)),
+    ("asan_error", re.compile(
+        r"AddressSanitizer", re.IGNORECASE)),
+    ("build_system_error", re.compile(
+        r"Could not find (?:package|module)\s+", re.IGNORECASE)),
+    ("build_system_error", re.compile(
+        r"No rule to make target\s+", re.IGNORECASE)),
+    ("build_system_error", re.compile(
+        r"CMake Error", re.IGNORECASE)),
     ("linker_error", re.compile(
         r"undefined reference to\s+", re.IGNORECASE)),
     ("linker_error", re.compile(
@@ -76,12 +90,17 @@ _ERROR_TYPE_PATTERNS: List[tuple[str, re.Pattern[str]]] = [
         r"use of undeclared identifier\s+", re.IGNORECASE)),
     ("compiler_error", re.compile(
         r"no matching function for call to\s+", re.IGNORECASE)),
+    ("runtime_exception", re.compile(
+        r"terminate called after throwing an instance of\s+", re.IGNORECASE)),
+    ("runtime_exception", re.compile(
+        r"std::(?:bad_alloc|out_of_range|runtime_error|logic_error|invalid_argument)",
+        re.IGNORECASE)),
     ("segfault", re.compile(r"Segmentation fault", re.IGNORECASE)),
 ]
 
 
 def classify_error_type(log_text: str) -> str:
-    """Classify a log snippet into one of the five error categories.
+    """Classify a log snippet into one of the eight error categories.
 
     Uses the same priority-ordered patterns as ``src/ingestion/log_parser.py``
     but implemented standalone so this script has no internal imports.
@@ -91,7 +110,8 @@ def classify_error_type(log_text: str) -> str:
 
     Returns:
         One of: linker_error, compiler_error, include_error,
-                template_error, segfault, unknown.
+                template_error, segfault, asan_error,
+                build_system_error, runtime_exception, unknown.
     """
     for error_type, pattern in _ERROR_TYPE_PATTERNS:
         if pattern.search(log_text):

@@ -337,3 +337,16 @@ debugaid index --repo /tmp/abseil
 echo "undefined reference to absl::StrCat" > /tmp/test.log
 debugaid query --log /tmp/test.log --repo /tmp/abseil
 ```
+
+
+# update log parser to handle more erros
+
+Task 1 — Expanded log parser (do this before synthetic generator)
+
+Before building the synthetic generator, expand src/ingestion/log_parser.py to handle 3 new error categories:
+
+asan_error — AddressSanitizer reports: patterns like heap-buffer-overflow on address, use-after-free on address, stack-buffer-overflow. Extract the error type and the stack frame where it occurred.
+build_system_error — CMake/Make errors: Could not find package X, No rule to make target, undefined reference to target, CMake Error at. Extract the missing package or target name as the identifier.
+runtime_exception — C++ exceptions: terminate called after throwing an instance of, std::bad_alloc, std::out_of_range, what(): . Extract the exception type and message.
+
+Add these to ERROR_TYPES, add regex patterns to _ERROR_PATTERNS with correct priority ordering, add tests for each new category in test_log_parser.py. Update classify_error_type in scripts/mine_github_issues.py to match.

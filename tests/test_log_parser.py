@@ -285,3 +285,141 @@ class TestNamespacedIdentifiers:
         for ident in result.identifiers:
             assert "(" not in ident
             assert "unsigned" not in ident
+
+
+# ---------------------------------------------------------------------------
+# 6. ASan error
+# ---------------------------------------------------------------------------
+
+class TestAsanError:
+    """AddressSanitizer errors: heap-buffer-overflow, use-after-free, etc."""
+
+    LOG_HEAP = (
+        "=================================================================\n"
+        "==12345==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x602000000014\n"
+        "READ of size 4 at 0x602000000014 thread T0\n"
+        "#0 0x555555555199 in main test.cpp:10\n"
+    )
+
+    LOG_USE_AFTER_FREE = (
+        "==67890==ERROR: AddressSanitizer: use-after-free on address 0x60200000001c\n"
+        "WRITE of size 4 at 0x60200000001c thread T0\n"
+    )
+
+    LOG_STACK = (
+        "==11111==ERROR: AddressSanitizer: stack-buffer-overflow on address 0x7ffd\n"
+    )
+
+    def test_heap_overflow_type(self):
+        result = parse_log(self.LOG_HEAP)
+        assert result.error_type == "asan_error"
+
+    def test_use_after_free_type(self):
+        result = parse_log(self.LOG_USE_AFTER_FREE)
+        assert result.error_type == "asan_error"
+
+    def test_stack_overflow_type(self):
+        result = parse_log(self.LOG_STACK)
+        assert result.error_type == "asan_error"
+
+    def test_error_message_contains_asan(self):
+        result = parse_log(self.LOG_HEAP)
+        assert "AddressSanitizer" in result.error_message
+
+    def test_file_hints_from_stack(self):
+        result = parse_log(self.LOG_HEAP)
+        assert "test.cpp" in result.file_hints
+
+
+# ---------------------------------------------------------------------------
+# 7. Build system error
+# ---------------------------------------------------------------------------
+
+class TestBuildSystemError:
+    """CMake / Make errors."""
+
+    LOG_CMAKE_FIND = (
+        "CMake Error at CMakeLists.txt:10 (find_package):\n"
+        "  Could not find package Boost\n"
+    )
+
+    LOG_MAKE_NO_RULE = (
+        "make[2]: *** No rule to make target 'libfoo.a', needed by 'main'. Stop.\n"
+    )
+
+    LOG_CMAKE_GENERIC = (
+        "CMake Error at /usr/share/cmake/Modules/FindPkgConfig.cmake:554:\n"
+        "  Package 'glib-2.0', required by 'virtual:world', not found\n"
+    )
+
+    def test_cmake_find_type(self):
+        result = parse_log(self.LOG_CMAKE_FIND)
+        assert result.error_type == "build_system_error"
+
+    def test_cmake_find_identifier(self):
+        result = parse_log(self.LOG_CMAKE_FIND)
+        assert "Boost" in result.identifiers
+
+    def test_make_no_rule_type(self):
+        result = parse_log(self.LOG_MAKE_NO_RULE)
+        assert result.error_type == "build_system_error"
+
+    def test_make_no_rule_identifier(self):
+        result = parse_log(self.LOG_MAKE_NO_RULE)
+        assert "libfoo.a" in result.identifiers
+
+    def test_cmake_generic_type(self):
+        result = parse_log(self.LOG_CMAKE_GENERIC)
+        assert result.error_type == "build_system_error"
+
+    def test_error_message_cmake(self):
+        result = parse_log(self.LOG_CMAKE_FIND)
+        assert "CMake Error" in result.error_message
+
+
+# ---------------------------------------------------------------------------
+# 8. Runtime exception
+# ---------------------------------------------------------------------------
+
+class TestRuntimeException:
+    """C++ runtime exceptions: terminate, std::bad_alloc, what()."""
+
+    LOG_TERMINATE = (
+        "terminate called after throwing an instance of 'std::runtime_error'\n"
+        "  what():  Connection refused\n"
+        "Aborted (core dumped)\n"
+    )
+
+    LOG_BAD_ALLOC = (
+        "std::bad_alloc: failed to allocate 1073741824 bytes\n"
+    )
+
+    LOG_OUT_OF_RANGE = (
+        "terminate called after throwing an instance of 'std::out_of_range'\n"
+        "  what():  vector::_M_range_check: __n (which is 100) >= this->size() (which is 10)\n"
+    )
+
+    def test_terminate_type(self):
+        result = parse_log(self.LOG_TERMINATE)
+        assert result.error_type == "runtime_exception"
+
+    def test_terminate_identifier(self):
+        result = parse_log(self.LOG_TERMINATE)
+        assert "std::runtime_error" in result.identifiers
+
+    def test_bad_alloc_type(self):
+        result = parse_log(self.LOG_BAD_ALLOC)
+        assert result.error_type == "runtime_exception"
+
+    def test_bad_alloc_identifier(self):
+        result = parse_log(self.LOG_BAD_ALLOC)
+        assert "std::bad_alloc" in result.identifiers
+
+    def test_out_of_range_type(self):
+        result = parse_log(self.LOG_OUT_OF_RANGE)
+        assert result.error_type == "runtime_exception"
+
+    def test_error_message_contains_terminate(self):
+        result = parse_log(self.LOG_TERMINATE)
+        assert "terminate" in result.error_message
+

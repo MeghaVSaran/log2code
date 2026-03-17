@@ -2,7 +2,8 @@
 Log Parser — Regex-based C++ error log extractor.
 
 Parses raw build/runtime log text into structured ParsedLog objects.
-Handles 5 error categories: linker, compiler, include, template, segfault.
+Handles 8 error categories: linker, compiler, include, template, segfault,
+asan_error, build_system_error, runtime_exception.
 
 See docs/2_system_architecture.md §2 for spec.
 """
@@ -20,6 +21,9 @@ ERROR_TYPES = {
     "include_error",
     "template_error",
     "segfault",
+    "asan_error",
+    "build_system_error",
+    "runtime_exception",
     "unknown",
 }
 
@@ -63,6 +67,42 @@ _RE_NO_MATCHING_FN = re.compile(
     r"no matching function for call to\s+[`'\"]?(" + _IDENT + r")[`'\"]?",
 )
 
+# --- asan_error ---
+_RE_ASAN_HEAP_OVERFLOW = re.compile(
+    r"heap-buffer-overflow on address", re.IGNORECASE,
+)
+_RE_ASAN_USE_AFTER_FREE = re.compile(
+    r"use-after-free on address", re.IGNORECASE,
+)
+_RE_ASAN_STACK_OVERFLOW = re.compile(
+    r"stack-buffer-overflow", re.IGNORECASE,
+)
+_RE_ASAN_GENERIC = re.compile(
+    r"AddressSanitizer", re.IGNORECASE,
+)
+
+# --- build_system_error ---
+_RE_CMAKE_FIND = re.compile(
+    r"Could not find (?:package|module)\s+([\w:]+)", re.IGNORECASE,
+)
+_RE_MAKE_NO_RULE = re.compile(
+    r"No rule to make target\s+[`'\"]?([^`'\"\s,]+)",
+)
+_RE_CMAKE_ERROR = re.compile(
+    r"CMake Error", re.IGNORECASE,
+)
+
+# --- runtime_exception ---
+_RE_TERMINATE_THROW = re.compile(
+    r"terminate called after throwing an instance of\s+[`'\"]?(" + _IDENT + r")[`'\"]?",
+)
+_RE_STD_EXCEPTION = re.compile(
+    r"(std::(?:bad_alloc|out_of_range|runtime_error|logic_error|invalid_argument|length_error|bad_cast|bad_typeid|overflow_error|underflow_error|domain_error|range_error|bad_weak_ptr|bad_function_call))\b",
+)
+_RE_WHAT = re.compile(
+    r"what\(\):\s*(.+)",
+)
+
 # --- segfault / stack trace ---
 _RE_SEGFAULT = re.compile(r"Segmentation fault", re.IGNORECASE)
 _RE_STACK_FRAME = re.compile(
@@ -78,10 +118,19 @@ _RE_FILE_HINT = re.compile(
 _ERROR_PATTERNS = [
     ("include_error", _RE_INCLUDE_ERROR),
     ("template_error", _RE_TEMPLATE_ERROR),
+    ("asan_error", _RE_ASAN_HEAP_OVERFLOW),
+    ("asan_error", _RE_ASAN_USE_AFTER_FREE),
+    ("asan_error", _RE_ASAN_STACK_OVERFLOW),
+    ("asan_error", _RE_ASAN_GENERIC),
+    ("build_system_error", _RE_CMAKE_FIND),
+    ("build_system_error", _RE_MAKE_NO_RULE),
+    ("build_system_error", _RE_CMAKE_ERROR),
     ("linker_error", _RE_UNDEF_REF),
     ("linker_error", _RE_MULTI_DEF),
     ("compiler_error", _RE_UNDECLARED_IDENT),
     ("compiler_error", _RE_NO_MATCHING_FN),
+    ("runtime_exception", _RE_TERMINATE_THROW),
+    ("runtime_exception", _RE_STD_EXCEPTION),
     ("segfault", _RE_SEGFAULT),
     ("segfault", _RE_STACK_FRAME),
 ]
@@ -161,7 +210,8 @@ def extract_error_type(log_text: str) -> str:
 
     Returns:
         One of: linker_error, compiler_error, include_error,
-                template_error, segfault, unknown.
+                template_error, segfault, asan_error,
+                build_system_error, runtime_exception, unknown.
     """
     for error_type, pattern in _ERROR_PATTERNS:
         if pattern.search(log_text):
@@ -198,6 +248,10 @@ def extract_identifiers(log_text: str) -> List[str]:
         _RE_UNDECLARED_IDENT,
         _RE_NO_MATCHING_FN,
         _RE_STACK_FRAME,
+        _RE_TERMINATE_THROW,
+        _RE_STD_EXCEPTION,
+        _RE_CMAKE_FIND,
+        _RE_MAKE_NO_RULE,
     ]
 
     for pattern in ident_patterns:
@@ -273,6 +327,12 @@ def _pick_error_message(log_text: str, error_type: str) -> str:
         "linker_error": [_RE_UNDEF_REF, _RE_MULTI_DEF],
         "compiler_error": [_RE_UNDECLARED_IDENT, _RE_NO_MATCHING_FN],
         "segfault": [_RE_SEGFAULT],
+        "asan_error": [
+            _RE_ASAN_HEAP_OVERFLOW, _RE_ASAN_USE_AFTER_FREE,
+            _RE_ASAN_STACK_OVERFLOW, _RE_ASAN_GENERIC,
+        ],
+        "build_system_error": [_RE_CMAKE_FIND, _RE_MAKE_NO_RULE, _RE_CMAKE_ERROR],
+        "runtime_exception": [_RE_TERMINATE_THROW, _RE_STD_EXCEPTION, _RE_WHAT],
     }
 
     patterns = type_to_patterns.get(error_type, [])

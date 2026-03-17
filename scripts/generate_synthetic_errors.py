@@ -22,6 +22,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -274,7 +275,7 @@ def inject_and_compile(
         rel_path = str(file_path.relative_to(repo_root)).replace("\\", "/")
 
         return {
-            "id": f"synthetic-{error_type}-{rel_path.replace('/', '_')}",
+            "id": f"synthetic-{error_type}-{rel_path.replace('/', '_')}-{uuid.uuid4().hex[:8]}",
             "log": log_snippet,
             "relevant_files": [rel_path],
             "error_type": error_type,

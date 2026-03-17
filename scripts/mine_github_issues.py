@@ -22,7 +22,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from github import Github, GithubException
+from github import Github, GithubException, Auth
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -361,13 +361,20 @@ def mine_repo(
                 "GITHUB_TOKEN environment variable is required. "
                 "Set it before running this script."
             )
-        github_client = Github(token, per_page=100)
+        github_client = Github(auth=Auth.Token(token), per_page=100)
 
     # Print remaining rate limit
-    rate_limit = github_client.get_rate_limit()
+    try:
+        rate_limit = github_client.get_rate_limit()
+        remaining = rate_limit.core.remaining
+        limit = rate_limit.core.limit
+    except Exception:
+        remaining = "unknown"
+        limit = "unknown"
+
     print(f"\n{'='*60}")
     print(f"Mining: {repo_name}")
-    print(f"Rate limit remaining: {rate_limit.core.remaining}/{rate_limit.core.limit}")
+    print(f"Rate limit remaining: {remaining}/{limit}")
     print(f"{'='*60}")
 
     repo = _api_call_with_retry(github_client.get_repo, repo_name)
@@ -427,7 +434,10 @@ def mine_repo(
             continue
 
         if (idx + 1) % 10 == 0:
-            remaining = github_client.get_rate_limit().core.remaining
+            try:
+                remaining = github_client.get_rate_limit().core.remaining
+            except Exception:
+                remaining = "unknown"
             print(f"  [{idx+1}/{len(issues_to_process)}] "
                   f"Processing issue #{issue.number}  "
                   f"(rate limit: {remaining})")

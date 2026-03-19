@@ -1,7 +1,9 @@
 """
 Hybrid Retriever — fuses dense (ChromaDB) and sparse (BM25) search.
 
-Score fusion: final = 0.6 * dense_score + 0.4 * bm25_score
+Score fusion: final = 0.5 * dense_score + 0.5 * bm25_score
+Optional file-path boost: results matching extracted source paths get +0.5.
+Optional file-path dedup: keeps highest-scoring result per unique file.
 
 See docs/2_system_architecture.md §7 for spec.
 """
@@ -16,6 +18,7 @@ DENSE_WEIGHT = 0.5
 SPARSE_WEIGHT = 0.5
 DEFAULT_CANDIDATES = 20   # fetch this many from each index before fusion
 DEFAULT_TOP_K = 5
+SOURCE_PATH_BOOST = 0.5    # score bonus for results matching extracted source paths
 
 
 @dataclass
@@ -49,12 +52,14 @@ class HybridRetriever:
         log_embedding,
         log_text: str,
         top_k: int = DEFAULT_TOP_K,
+        source_paths: List[str] = None,
+        deduplicate_files: bool = True,
     ) -> List[RetrievalResult]:
         """Retrieve top-k most relevant code chunks for a log.
 
         Queries both the dense (ChromaDB) and sparse (BM25) indices,
         normalises their scores to [0, 1], and fuses them with weights
-        ``0.6 * dense + 0.4 * bm25``.
+        ``0.5 * dense + 0.5 * bm25``.
 
         Falls back to a single index if the other is unavailable.
 
@@ -62,6 +67,12 @@ class HybridRetriever:
             log_embedding: 768-dim vector from log embedder.
             log_text: Raw query text for BM25 (error_message + identifiers).
             top_k: Number of results to return.
+            source_paths: Optional list of normalized source file paths
+                extracted from the error log.  Results whose ``file_path``
+                matches any of these get a score boost.
+            deduplicate_files: If True, collapse results so that each
+                unique ``file_path`` appears at most once (keeping the
+                highest-scoring function per file).
 
         Returns:
             List of RetrievalResult sorted by descending fused score.
@@ -84,8 +95,17 @@ class HybridRetriever:
         # --- fuse ----------------------------------------------------------
         fused = self._fuse(dense_results, bm25_results)
 
-        # Sort descending by fused score, assign ranks, return top_k.
+        # --- file-path boost -----------------------------------------------
+        if source_paths:
+            fused = self._apply_source_path_boost(fused, source_paths)
+
+        # Sort descending by fused score, assign ranks.
         fused.sort(key=lambda r: r.score, reverse=True)
+
+        # --- file-path deduplication ---------------------------------------
+        if deduplicate_files:
+            fused = self._deduplicate_files(fused)
+
         for i, r in enumerate(fused):
             r.rank = i + 1
 
@@ -169,3 +189,70 @@ class HybridRetriever:
             ))
 
         return results
+
+    def _apply_source_path_boost(
+        self,
+        results: List[RetrievalResult],
+        source_paths: List[str],
+    ) -> List[RetrievalResult]:
+        """Boost scores of results whose file_path matches an extracted source path.
+
+        Matching is done by checking if the result's file_path ends with
+        any of the source_paths (or vice versa), or if they share the same
+        basename when no relative-path match is possible.
+
+        Args:
+            results: Fused results (not yet sorted).
+            source_paths: Normalized paths from extract_source_paths().
+
+        Returns:
+            Same results list with boosted scores.
+        """
+        if not source_paths:
+            return results
+
+        # Build a set of basenames for fallback matching
+        source_basenames = {p.rsplit('/', 1)[-1] for p in source_paths}
+
+        for r in results:
+            # Normalize to forward slashes for comparison
+            fp = r.file_path.replace('\\', '/')
+
+            matched = False
+            for sp in source_paths:
+                # Check if one is a suffix of the other
+                if fp.endswith(sp) or sp.endswith(fp):
+                    matched = True
+                    break
+
+            if not matched:
+                # Fallback: basename match
+                fp_basename = fp.rsplit('/', 1)[-1]
+                if fp_basename in source_basenames:
+                    matched = True
+
+            if matched:
+                r.score = min(r.score + SOURCE_PATH_BOOST, 1.0)
+
+        return results
+
+    def _deduplicate_files(
+        self, results: List[RetrievalResult]
+    ) -> List[RetrievalResult]:
+        """Keep only the highest-scoring result per unique file_path.
+
+        Assumes results are already sorted by score descending.
+
+        Args:
+            results: Sorted list of RetrievalResult.
+
+        Returns:
+            Deduplicated list preserving sort order.
+        """
+        seen: set = set()
+        deduped: List[RetrievalResult] = []
+        for r in results:
+            if r.file_path not in seen:
+                seen.add(r.file_path)
+                deduped.append(r)
+        return deduped

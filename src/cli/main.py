@@ -142,9 +142,10 @@ def query(log_path, repo, top_k, verbose, output):
         log_text = Path(log_path).read_text(encoding="utf-8", errors="replace")
 
         # 2. Parse log.
-        from src.ingestion.log_parser import parse_log
+        from src.ingestion.log_parser import parse_log, extract_source_paths
 
         parsed_log = parse_log(log_text)
+        source_paths = extract_source_paths(log_text, repo_root=repo_path)
 
         # 3. Load indices.
         from src.indexing.vector_index import VectorIndex
@@ -164,7 +165,12 @@ def query(log_path, repo, top_k, verbose, output):
         from src.retrieval.hybrid_retriever import HybridRetriever
 
         retriever = HybridRetriever(vector_index, bm25_index)
-        results = retriever.retrieve(log_embedding, parsed_log.query_text(), top_k=top_k)
+        results = retriever.retrieve(
+            log_embedding,
+            parsed_log.query_text(),
+            top_k=top_k,
+            source_paths=source_paths,
+        )
 
         if not results:
             click.echo("No results found.", err=True)
@@ -210,7 +216,8 @@ def query(log_path, repo, top_k, verbose, output):
 @cli.command("eval")
 @click.option("--dataset", required=True, type=click.Path(exists=True), help="Path to ground truth JSON.")
 @click.option("--repo", required=True, type=click.Path(exists=True), help="Path to indexed C++ repository.")
-def eval_cmd(dataset, repo):
+@click.option("--repo-filter", default=None, help="Only eval samples whose relevant_files all start with this prefix (e.g. 'absl/').")
+def eval_cmd(dataset, repo, repo_filter):
     """Evaluate retrieval quality on a ground truth dataset."""
     try:
         repo_path = Path(repo).resolve()
@@ -224,6 +231,21 @@ def eval_cmd(dataset, repo):
         with open(dataset, "r", encoding="utf-8") as f:
             data = json.load(f)
         click.echo(f"Loaded {len(data)} samples from {dataset}")
+
+        # Apply optional repo filter to drop samples from unindexed repos.
+        if repo_filter:
+            original_count = len(data)
+            data = [
+                s for s in data
+                if all(f.startswith(repo_filter) for f in s.get("relevant_files", []))
+            ]
+            click.echo(
+                f"Filtered to {len(data)}/{original_count} samples "
+                f"matching prefix '{repo_filter}'"
+            )
+            if not data:
+                click.echo("No samples remain after filtering.", err=True)
+                sys.exit(1)
 
         # 2. Load indices.
         from src.indexing.vector_index import VectorIndex
@@ -250,18 +272,22 @@ def eval_cmd(dataset, repo):
 
         click.echo("Running evaluation...")
         t_start = time.time()
-        report = evaluate_dataset(data, retriever, _LogParserWrapper(), log_embedder)
+        report = evaluate_dataset(data, retriever, _LogParserWrapper(), log_embedder, repo_root=repo_path)
         elapsed = time.time() - t_start
 
         # 4. Print report.
-        click.echo(f"\n{'='*50}")
-        click.echo(f"  Evaluation Report  ({report.num_samples} samples)")
-        click.echo(f"{'='*50}")
+        filter_label = f" [filtered: {repo_filter}]" if repo_filter else ""
+        click.echo(f"\n{'='*60}")
+        click.echo(f"  Evaluation Report  ({report.num_samples} samples){filter_label}")
+        click.echo(f"{'='*60}")
+        if repo_filter:
+            click.echo(f"  NOTE: Results are for the {repo_filter}-filtered subset only.")
+            click.echo(f"        Do NOT report as overall system performance.")
         click.echo(f"  Recall@1:  {report.recall_at_1:.4f}")
         click.echo(f"  Recall@3:  {report.recall_at_3:.4f}")
         click.echo(f"  Recall@5:  {report.recall_at_5:.4f}")
         click.echo(f"  MRR:       {report.mrr:.4f}")
-        click.echo(f"{'='*50}")
+        click.echo(f"{'='*60}")
 
         if report.per_error_type:
             click.echo(f"\n  Per Error Type:")

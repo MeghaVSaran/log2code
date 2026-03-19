@@ -4,9 +4,10 @@ Evaluation metrics: Recall@K and MRR.
 See docs/3_mvp_spec.md §F6 for spec.
 """
 
-from typing import List, Dict
+from typing import List, Dict, Optional
 from dataclasses import dataclass, field
 from collections import defaultdict
+from pathlib import Path
 import logging
 
 logger = logging.getLogger(__name__)
@@ -82,6 +83,7 @@ def evaluate_dataset(
     retriever,
     log_parser,
     log_embedder,
+    repo_root: Optional[Path] = None,
 ) -> EvalReport:
     """Run full evaluation on a ground truth dataset.
 
@@ -96,6 +98,9 @@ def evaluate_dataset(
         log_parser: Module or object with ``parse_log(text)`` function.
         log_embedder: LogEmbedder instance with ``embed_log(parsed)``
                       method.
+        repo_root: Optional path to the indexed repository root.
+                   Passed to ``extract_source_paths()`` for path
+                   normalization.
 
     Returns:
         EvalReport with aggregate and per-category metrics.
@@ -120,8 +125,14 @@ def evaluate_dataset(
         # Parse → embed → retrieve.
         parsed_log = log_parser.parse_log(log_text)
         log_embedding = log_embedder.embed_log(parsed_log)
+
+        # Extract source paths for file-path boost.
+        from src.ingestion.log_parser import extract_source_paths
+        source_paths = extract_source_paths(log_text, repo_root=repo_root)
+
         results = retriever.retrieve(
-            log_embedding, parsed_log.query_text(), top_k=5
+            log_embedding, parsed_log.query_text(), top_k=5,
+            source_paths=source_paths,
         )
         predictions = [r.file_path for r in results]
 

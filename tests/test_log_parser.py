@@ -1,17 +1,21 @@
 """
 Tests for src/ingestion/log_parser.py
 
-Covers all 5 error categories, multi-line logs, unknown errors,
-multiple-error-line priority, and deeply-namespaced identifiers.
+Covers all 8 error categories, multi-line logs, unknown errors,
+multiple-error-line priority, deeply-namespaced identifiers,
+expanded compiler patterns, __BOGUS_ stripping, and source-path extraction.
 """
 
 import pytest
+import tempfile
+from pathlib import Path
 from src.ingestion.log_parser import (
     ParsedLog,
     parse_log,
     extract_error_type,
     extract_identifiers,
     extract_file_hints,
+    extract_source_paths,
 )
 
 
@@ -422,4 +426,195 @@ class TestRuntimeException:
     def test_error_message_contains_terminate(self):
         result = parse_log(self.LOG_TERMINATE)
         assert "terminate" in result.error_message
+
+
+# ---------------------------------------------------------------------------
+# 9. Expanded compiler error patterns (Fix 3)
+# ---------------------------------------------------------------------------
+
+class TestExpandedCompilerPatterns:
+    """Tests for the 7 new compiler_error regex patterns."""
+
+    LOG_NOT_MEMBER_OF = (
+        "/tmp/abseil/absl/synchronization/internal/kernel_timeout.cc:143:16: "
+        "error: '__BOGUS_ToTimespec' is not a member of 'absl'\n"
+    )
+
+    LOG_NO_MEMBER_NAMED = (
+        "/tmp/abseil/absl/strings/cord.cc:55:10: "
+        "error: 'class absl::Cord' has no member named '__BOGUS_pop_back'\n"
+    )
+
+    LOG_NOT_DECLARED_SCOPE = (
+        "main.cpp:10:5: error: 'kStaticRandomData' was not declared in this scope\n"
+    )
+
+    LOG_DOES_NOT_NAME_TYPE = (
+        "header.h:20:1: error: 'CordzSampleToken' does not name a type\n"
+    )
+
+    LOG_HAS_NOT_BEEN_DECLARED = (
+        "test.cpp:5:10: error: 'KernelTimeout' has not been declared\n"
+    )
+
+    LOG_INCOMPLETE_TYPE = (
+        "foo.cpp:12:3: error: invalid use of incomplete type 'struct Foo'\n"
+    )
+
+    def test_not_member_of_type(self):
+        result = parse_log(self.LOG_NOT_MEMBER_OF)
+        assert result.error_type == "compiler_error"
+
+    def test_not_member_of_identifier(self):
+        result = parse_log(self.LOG_NOT_MEMBER_OF)
+        # __BOGUS_ should be stripped, leaving "ToTimespec"
+        assert "ToTimespec" in result.identifiers
+
+    def test_no_member_named_type(self):
+        result = parse_log(self.LOG_NO_MEMBER_NAMED)
+        assert result.error_type == "compiler_error"
+
+    def test_no_member_named_identifier(self):
+        result = parse_log(self.LOG_NO_MEMBER_NAMED)
+        # __BOGUS_ should be stripped, leaving "pop_back"
+        assert "pop_back" in result.identifiers
+
+    def test_not_declared_scope_type(self):
+        result = parse_log(self.LOG_NOT_DECLARED_SCOPE)
+        assert result.error_type == "compiler_error"
+
+    def test_not_declared_scope_identifier(self):
+        result = parse_log(self.LOG_NOT_DECLARED_SCOPE)
+        assert "kStaticRandomData" in result.identifiers
+
+    def test_does_not_name_type_type(self):
+        result = parse_log(self.LOG_DOES_NOT_NAME_TYPE)
+        assert result.error_type == "compiler_error"
+
+    def test_does_not_name_type_identifier(self):
+        result = parse_log(self.LOG_DOES_NOT_NAME_TYPE)
+        assert "CordzSampleToken" in result.identifiers
+
+    def test_has_not_been_declared_type(self):
+        result = parse_log(self.LOG_HAS_NOT_BEEN_DECLARED)
+        assert result.error_type == "compiler_error"
+
+    def test_has_not_been_declared_identifier(self):
+        result = parse_log(self.LOG_HAS_NOT_BEEN_DECLARED)
+        assert "KernelTimeout" in result.identifiers
+
+    def test_incomplete_type_type(self):
+        result = parse_log(self.LOG_INCOMPLETE_TYPE)
+        assert result.error_type == "compiler_error"
+
+    def test_error_message_picked_correctly(self):
+        """The error message should be the line containing the pattern."""
+        result = parse_log(self.LOG_NOT_MEMBER_OF)
+        assert "is not a member of" in result.error_message
+
+
+# ---------------------------------------------------------------------------
+# 10. __BOGUS_ identifier stripping (Fix 6)
+# ---------------------------------------------------------------------------
+
+class TestBogusIdentifierStripping:
+    """Synthetic errors use __BOGUS_ prefixed identifiers; those should
+    be stripped to recover the real symbol name."""
+
+    LOG_BOGUS_UNDECLARED = (
+        "main.cpp:10:5: error: use of undeclared identifier '__BOGUS_StrCat'\n"
+    )
+
+    LOG_BOGUS_UNDEF_REF = (
+        "/usr/bin/ld: error: undefined reference to `__BOGUS_StrAppend'\n"
+        "collect2: error: ld returned 1 exit status\n"
+    )
+
+    def test_bogus_stripped_compiler(self):
+        result = parse_log(self.LOG_BOGUS_UNDECLARED)
+        assert "StrCat" in result.identifiers
+        assert "__BOGUS_StrCat" not in result.identifiers
+
+    def test_bogus_stripped_linker(self):
+        result = parse_log(self.LOG_BOGUS_UNDEF_REF)
+        assert "StrAppend" in result.identifiers
+        assert "__BOGUS_StrAppend" not in result.identifiers
+
+
+# ---------------------------------------------------------------------------
+# 11. Source path extraction (Fix 4)
+# ---------------------------------------------------------------------------
+
+class TestSourcePathExtraction:
+    """Tests for extract_source_paths() with and without repo_root."""
+
+    LOG_WITH_PATH = (
+        "/tmp/abseil/absl/strings/str_cat.cc:143:16: error: "
+        "'__BOGUS_StrCat' is not a member of 'absl'\n"
+    )
+
+    LOG_MULTIPLE_PATHS = (
+        "/tmp/abseil/absl/strings/str_cat.cc:143:16: error: foo\n"
+        "/tmp/abseil/absl/strings/str_join.h:50:5: error: bar\n"
+    )
+
+    LOG_NO_PATH = (
+        "error: use of undeclared identifier 'foo'\n"
+    )
+
+    def test_extract_without_repo_root_fallback_to_filename(self):
+        """Without repo_root, should fall back to the bare filename."""
+        paths = extract_source_paths(self.LOG_WITH_PATH)
+        assert "str_cat.cc" in paths
+
+    def test_extract_with_repo_root(self):
+        """With a valid repo_root whose structure matches, should normalize."""
+        # Create a temp directory with a matching file structure
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create absl/strings/str_cat.cc within tmpdir
+            target = Path(tmpdir) / "absl" / "strings" / "str_cat.cc"
+            target.parent.mkdir(parents=True)
+            target.touch()
+
+            paths = extract_source_paths(self.LOG_WITH_PATH, repo_root=Path(tmpdir))
+            assert "absl/strings/str_cat.cc" in paths
+
+    def test_multiple_paths_extracted(self):
+        """Should extract all unique paths from the log."""
+        paths = extract_source_paths(self.LOG_MULTIPLE_PATHS)
+        assert len(paths) == 2
+
+    def test_no_paths_returns_empty(self):
+        """Logs without absolute paths should return empty list."""
+        paths = extract_source_paths(self.LOG_NO_PATH)
+        assert paths == []
+
+    def test_longest_suffix_preferred(self):
+        """When multiple suffixes match, the longest (most specific) wins."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create both absl/strings/str_cat.cc AND strings/str_cat.cc
+            long_path = Path(tmpdir) / "absl" / "strings" / "str_cat.cc"
+            long_path.parent.mkdir(parents=True)
+            long_path.touch()
+
+            paths = extract_source_paths(self.LOG_WITH_PATH, repo_root=Path(tmpdir))
+            # Should prefer the longer suffix
+            assert "absl/strings/str_cat.cc" in paths
+
+
+# ---------------------------------------------------------------------------
+# 12. Linker: declaration outside of class (Fix 3)
+# ---------------------------------------------------------------------------
+
+class TestLinkerDeclarationOutsideClass:
+    """Pattern: declaration of X outside of class is not definition."""
+
+    LOG = (
+        "foo.cpp:15:1: error: declaration of 'void Foo::bar()' "
+        "outside of class is not definition\n"
+    )
+
+    def test_error_type(self):
+        result = parse_log(self.LOG)
+        assert result.error_type == "linker_error"
 

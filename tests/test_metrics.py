@@ -128,7 +128,7 @@ class FakeRetriever:
     def __init__(self, file_paths: List[str]):
         self._paths = file_paths
 
-    def retrieve(self, log_embedding, log_text, top_k=5):
+    def retrieve(self, log_embedding, log_text, top_k=5, **kwargs):
         return [
             FakeResult(
                 rank=i + 1,

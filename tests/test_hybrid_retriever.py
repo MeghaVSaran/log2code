@@ -213,5 +213,121 @@ class TestRetrievalResult:
             FakeVectorIndex(DENSE_RESULTS),
             FakeBM25Index(BM25_RESULTS),
         )
-        results = retriever.retrieve(FAKE_EMBEDDING, "bar", top_k=10)
+        # With dedup on, each file only appears once — all 4 have unique file_paths
+        results = retriever.retrieve(FAKE_EMBEDDING, "bar", top_k=10, deduplicate_files=False)
         assert len(results) == 4
+
+
+class TestFileDeduplication:
+    """Fix 5: File-path deduplication keeps only the best result per file."""
+
+    # Two functions from the same file
+    DENSE_SAME_FILE = [
+        {"chunk_id": "a.cpp::foo", "file_path": "a.cpp",
+         "function_name": "foo", "start_line": 10, "score": 0.9},
+        {"chunk_id": "a.cpp::bar", "file_path": "a.cpp",
+         "function_name": "bar", "start_line": 50, "score": 0.8},
+        {"chunk_id": "b.cpp::baz", "file_path": "b.cpp",
+         "function_name": "baz", "start_line": 30, "score": 0.5},
+    ]
+
+    def test_dedup_removes_same_file_duplicates(self):
+        retriever = HybridRetriever(
+            FakeVectorIndex(self.DENSE_SAME_FILE),
+            FakeBM25Index([]),
+        )
+        results = retriever.retrieve(FAKE_EMBEDDING, "test", top_k=10, deduplicate_files=True)
+        file_paths = [r.file_path for r in results]
+        assert len(file_paths) == len(set(file_paths)), "Duplicate file_paths in results!"
+        assert len(results) == 2  # a.cpp and b.cpp
+
+    def test_dedup_keeps_highest_score(self):
+        retriever = HybridRetriever(
+            FakeVectorIndex(self.DENSE_SAME_FILE),
+            FakeBM25Index([]),
+        )
+        results = retriever.retrieve(FAKE_EMBEDDING, "test", top_k=10, deduplicate_files=True)
+        a_result = [r for r in results if r.file_path == "a.cpp"][0]
+        assert a_result.function_name == "foo"  # foo has higher score (0.9 > 0.8)
+
+    def test_dedup_off_keeps_all(self):
+        retriever = HybridRetriever(
+            FakeVectorIndex(self.DENSE_SAME_FILE),
+            FakeBM25Index([]),
+        )
+        results = retriever.retrieve(FAKE_EMBEDDING, "test", top_k=10, deduplicate_files=False)
+        assert len(results) == 3  # All three results kept
+
+
+class TestSourcePathBoost:
+    """Fix 4: Source path boost increases scores for matching file paths."""
+
+    def test_boost_increases_matching_score(self):
+        retriever = HybridRetriever(
+            FakeVectorIndex(DENSE_RESULTS),
+            FakeBM25Index([]),
+        )
+        # Without boost
+        results_no_boost = retriever.retrieve(
+            FAKE_EMBEDDING, "test", top_k=10,
+            source_paths=None, deduplicate_files=False,
+        )
+        score_a_no_boost = [r for r in results_no_boost if r.file_path == "a.cpp"][0].score
+
+        # With boost matching a.cpp
+        results_boosted = retriever.retrieve(
+            FAKE_EMBEDDING, "test", top_k=10,
+            source_paths=["a.cpp"], deduplicate_files=False,
+        )
+        score_a_boosted = [r for r in results_boosted if r.file_path == "a.cpp"][0].score
+
+        assert score_a_boosted > score_a_no_boost
+
+    def test_boost_can_change_ranking(self):
+        """A low-scoring result can jump to #1 if its path matches."""
+        retriever = HybridRetriever(
+            FakeVectorIndex(DENSE_RESULTS),
+            FakeBM25Index([]),
+        )
+        # c.cpp has the lowest dense score (0.5)
+        results = retriever.retrieve(
+            FAKE_EMBEDDING, "test", top_k=10,
+            source_paths=["c.cpp"], deduplicate_files=False,
+        )
+        # c.cpp should be boosted to rank 1
+        assert results[0].file_path == "c.cpp"
+
+    def test_boost_no_match_unchanged(self):
+        """Non-matching results should not be affected."""
+        retriever = HybridRetriever(
+            FakeVectorIndex(DENSE_RESULTS),
+            FakeBM25Index([]),
+        )
+        results_no_boost = retriever.retrieve(
+            FAKE_EMBEDDING, "test", top_k=10,
+            source_paths=None, deduplicate_files=False,
+        )
+        results_boosted = retriever.retrieve(
+            FAKE_EMBEDDING, "test", top_k=10,
+            source_paths=["nonexistent.cpp"], deduplicate_files=False,
+        )
+        # Scores should be identical for all results
+        for r1, r2 in zip(
+            sorted(results_no_boost, key=lambda r: r.chunk_id),
+            sorted(results_boosted, key=lambda r: r.chunk_id),
+        ):
+            assert abs(r1.score - r2.score) < 1e-6
+
+    def test_suffix_matching(self):
+        """Boost should work with suffix matching (a.cpp matches dir/a.cpp)."""
+        retriever = HybridRetriever(
+            FakeVectorIndex(DENSE_RESULTS),
+            FakeBM25Index([]),
+        )
+        results = retriever.retrieve(
+            FAKE_EMBEDDING, "test", top_k=10,
+            source_paths=["path/to/a.cpp"], deduplicate_files=False,
+        )
+        a_result = [r for r in results if r.file_path == "a.cpp"][0]
+        # a.cpp should be boosted because "a.cpp" is a suffix of "path/to/a.cpp"
+        assert a_result.score > 0.5  # Would be 0.5 (dense=1.0 * 0.5) without boost

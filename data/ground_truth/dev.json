@@ -1,0 +1,628 @@
+[
+  {
+    "id": "synthetic-include_error-absl_strings_internal_ostringstream.cc-4fff9305",
+    "log": "/tmp/abseil/absl/strings/internal/ostringstream.cc:23:1: error: ‘ABSL_NAMESPACE_BEGIN’ does not name a type\n/tmp/abseil/absl/strings/internal/ostringstream.cc:42:1: error: ‘ABSL_NAMESPACE_END’ does not name a type",
+    "relevant_files": [
+      "absl/strings/internal/ostringstream.cc"
+    ],
+    "error_type": "include_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-compiler_error-absl_synchronization_internal_kernel_timeout.cc-8216c8b8",
+    "log": "/tmp/abseil/absl/synchronization/internal/kernel_timeout.cc:143:16: error: ‘__BOGUS_ToTimespec’ is not a member of ‘absl’",
+    "relevant_files": [
+      "absl/synchronization/internal/kernel_timeout.cc"
+    ],
+    "error_type": "compiler_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "llvm_llvm-project-issue-183728",
+    "log": "<source>:4:16: error: type specifier missing, defaults to 'int'; ISO C99 and later do not support implicit int [-Wimplicit-int]\n    4 |   const *const fmt2 = fmt;\n      |   ~~~~~        ^\n      |   int \n<source>:4:23: error: use of undeclared identifier 'fmt'; did you mean 'fmt2'?\n    4 |   const *const fmt2 = fmt;\n      |                       ^~~\n      |                       fmt2\n<source>:4:16: note: 'fmt2' declared here\n    4 |   const *const fmt2 = fmt;\n      |                ^\n<source>:5:7: error: incompatible pointer types passing 'const int *const' to parameter of type 'char *' [-Wincompatible-pointer-types]\n    5 |   bar(fmt2);\n      |       ^~~~\n<source>:1:15: note: passing argument to parameter here\n    1 | int bar(char *) __attribute__((format_matches(printf, 1, \"%s\")));\n      |               ^\nProgram terminated with signal: SIGSEGV\nCompiler returned: 139",
+    "relevant_files": [
+      "lldb/include/lldb/Target/ThreadList.h",
+      "lldb/include/lldb/Target/ThreadPlanStepOverBreakpoint.h",
+      "lldb/source/Target/ThreadList.cpp",
+      "lldb/source/Target/ThreadPlanStepOverBreakpoint.cpp"
+    ],
+    "error_type": "compiler_error",
+    "source": "github",
+    "repo": "llvm/llvm-project",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/183728",
+    "split": "dev"
+  },
+  {
+    "id": "llvm_llvm-project-issue-75651",
+    "log": "$ clang++ -fopenmp -fopenmp-targets=x86_64-pc-linux-gnu -fsanitize=address main.cpp\r\n/usr/bin/ld: /tmp/main-6e59bc-x86_64-pc-linux-gnu--d95d92.o: in function `asan.module_ctor':\r\nmain.cpp:(.text.asan.module_ctor[asan.module_ctor]+0x5): undefined reference to `__asan_init'\r\n/usr/bin/ld: main.cpp:(.text.asan.module_ctor[asan.module_ctor]+0xa): undefined reference to `__asan_version_mismatch_check_v8'\r\n/usr/bin/ld: main.cpp:(.text.asan.module_ctor[asan.module_ctor]+0x24): undefined reference to `__asan_register_elf_globals'\r\nclang: error: linker command failed with exit code 1 (use -v to see invocation)\r\n/scratch3/packages/llvm/master-nightly/bin/clang-linker-wrapper: error: 'clang' failed\r\nclang++: error: linker command failed with exit code 1 (use -v to see invocation)",
+    "relevant_files": [
+      "llvm/lib/Transforms/IPO/SampleProfileProbe.cpp"
+    ],
+    "error_type": "linker_error",
+    "source": "github",
+    "repo": "llvm/llvm-project",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/75651",
+    "split": "dev"
+  },
+  {
+    "id": "abseil_abseil-cpp-issue-952",
+    "log": "[ 56%] Building CXX object absl/debugging/CMakeFiles/failure_signal_handler.dir/failure_signal_handler.cc.o\r\ncd /home/tkloczko/rpmbuild/BUILD/abseil-cpp-20210324.1/x86_64-redhat-linux-gnu/absl/debugging && /usr/bin/g++ -Dfailure_signal_handler_EXPORTS -I/home/tkloczko/rpmbuild/BUILD/abseil-cpp-20210324.1 -O2 -g -grecord-gcc-switches -pipe -Wall -Werror=format-security -Wp,-D_FORTIFY_SOURCE=2 -Wp,-D_GLIBCXX_ASSERTIONS -specs=/usr/lib/rpm/redhat/redhat-hardened-cc1 -fstack-protector-strong -specs=/usr/lib/rpm/redhat/redhat-annobin-cc1 -m64 -mtune=generic -fasynchronous-unwind-tables -fstack-clash-protection -fcf-protection -fdata-sections -ffunction-sections -flto=auto -flto-partition=none -DNDEBUG -fPIC -Wall -Wextra -Wcast-qual -Wconversion-null -Wformat-security -Wmissing-declarations -Woverlength-strings -Wpointer-arith -Wundef -Wunused-local-typedefs -Wunused-result -Wvarargs -Wvla -Wwrite-strings -DNOMINMAX -o CMakeFiles/failure_signal_handler.dir/failure_signal_handler.cc.o -c /home/tkloczko/rpmbuild/BUILD/abseil-cpp-20210324.1/absl/debugging/failure_signal_handler.cc\r\n/home/tkloczko/rpmbuild/BUILD/abseil-cpp-20210324.1/absl/debugging/failure_signal_handler.cc: In function ‘bool absl::lts_20210324::SetupAlternateStackOnce()’:\r\n/home/tkloczko/rpmbuild/BUILD/abseil-cpp-20210324.1/absl/debugging/failure_signal_handler.cc:139:32: error: no matching function for call to ‘max(long int, int)’\r\n  139 |   size_t stack_size = (std::max(SIGSTKSZ, 65536) + page_mask) & ~page_mask;\r\n      |                        ~~~~~~~~^~~~~~~~~~~~~~~~~\r\nIn file included from /usr/include/c++/11/algorithm:61,\r\n                 from /home/tkloczko/rpmbuild/BUILD/abseil-cpp-20210324.1/absl/debugging/failure_signal_handler.cc:36:\r\n/usr/include/c++/11/bits/stl_algobase.h:254:5: note: candidate: ‘template<class _Tp> constexpr const _Tp& std::max(const _Tp&, const _Tp&)’\r\n  254 |     max(const _Tp& __a, const _Tp& __b)\r\n      |     ^~~\r\n/usr/include/c++/11/bits/stl_algobase.h:254:5: note:   template argument deduction/substitution failed:\r\n/home/tkloczko/rpmbuild/BUILD/abseil-cpp-20210324.1/absl/debugging/failure_signal_handler.cc:139:32: note:   deduced conflicting types for parameter ‘const _Tp’ (‘long int’ and ‘int’)\r\n  139 |   size_t stack_size = (std::max(SIGSTKSZ, 65536) + page_mask) & ~page_mask;\r\n      |                        ~~~~~~~~^~~~~~~~~~~~~~~~~\r\nIn file included from /usr/include/c++/11/algorithm:61,\r\n                 from /home/tkloczko/rpmbuild/BUILD/abseil-cpp-20210324.1/absl/debugging/failure_signal_handler.cc:36:\r\n/usr/include/c++/11/bits/stl_algobase.h:300:5: note: candidate: ‘template<class _Tp, class _Compare> constexpr const _Tp& std::max(const _Tp&, const _Tp&, _Compare)’\r\n  300 |     max(const _Tp& __a, const _Tp& __b, _Compare __comp)\r\n      |     ^~~\r\n/usr/include/c++/11/bits/stl_algobase.h:300:5: note:   template argument deduction/substitution failed:\r\n/home/tkloczko/rpmbuild/BUILD/abseil-cpp-20210324.1/absl/debugging/failure_signal_handler.cc:139:32: note:   deduced conflicting types for parameter ‘const _Tp’ (‘long int’ and ‘int’)\r\n  139 |   size_t stack_size = (std::max(SIGSTKSZ, 65536) + page_mask) & ~page_mask;\r\n      |                        ~~~~~~~~^~~~~~~~~~~~~~~~~\r\nIn file included from /usr/include/c++/11/algorithm:62,\r\n                 from /home/tkloczko/rpmbuild/BUILD/abseil-cpp-20210324.1/absl/debugging/failure_signal_handler.cc:36:\r\n/usr/include/c++/11/bits/stl_algo.h:3461:5: note: candidate: ‘template<class _Tp> constexpr _Tp std::max(std::initializer_list<_Tp>)’\r\n 3461 |     max(initializer_list<_Tp> __l)\r\n      |     ^~~\r\n/usr/include/c++/11/bits/stl_algo.h:3461:5: note:   template argument deduction/substitution failed:\r\n/home/tkloczko/rpmbuild/BUILD/abseil-cpp-20210324.1/absl/debugging/failure_signal_handler.cc:139:32: note:   mismatched types ‘std::initializer_list<_Tp>’ and ‘long int’\r\n  139 |   size_t stack_size = (std::max(SIGSTKSZ, 65536) + page_mask) & ~page_mask;\r\n      |                        ~~~~~~~~^~~~~~~~~~~~~~~~~\r\nIn file included from /usr/include/c++/11/algorithm:62,\r\n                 from /home/tkloczko/rpmbuild/BUILD/abseil-cpp-20210324.1/absl/debugging/failure_signal_handler.cc:36:\r\n/usr/include/c++/11/bits/stl_algo.h:3467:5: note: candidate: ‘template<class _Tp, class _Compare> constexpr _Tp std::max(std::initializer_list<_Tp>, _Compare)’\r\n 3467 |     max(initializer_list<_Tp> __l, _Compare __comp)\r\n      |     ^~~\r\n/usr/include/c++/11/bits/stl_algo.h:3467:5: note:   template argument deduction/substitution failed:\r\n/home/tkloczko/rpmbuild/BUILD/abseil-cpp-20210324.1/absl/debugging/failure_signal_handler.cc:139:32: note:   mismatched types ‘std::initializer_list<_Tp>’ and ‘long int’\r\n  139 |   size_t stack_size = (std::max(SIGSTKSZ, 65536) + page_mask) & ~page_mask;\r\n      |                        ~~~~~~~~^~~~~~~~~~~~~~~~~\r\nmake[2]: *** [absl/debugging/CMakeFiles/failure_signal_handler.dir/build.make:85: absl/debugging/CMakeFiles/failure_signal_handler.dir/failure_signal_handler.cc.o] Error 1\r\nmake[2]: Leaving directory '/home/tkloczko/rpmbuild/BUILD/abseil-cpp-20210324.1/x86_64-redhat-linux-gnu'\r\nmake[1]: *** [CMakeFiles/Makefile2:1188: absl/debugging/CMakeFiles/failure_signal_handler.dir/all] Error 2",
+    "relevant_files": [
+      "absl/debugging/failure_signal_handler.cc",
+      "absl/strings/internal/str_format/arg.h",
+      "absl/strings/internal/str_format/convert_test.cc"
+    ],
+    "error_type": "compiler_error",
+    "source": "github",
+    "repo": "abseil/abseil-cpp",
+    "issue_url": "https://github.com/abseil/abseil-cpp/issues/952",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-linker_error-absl_synchronization_internal_pthread_waiter.cc-adb13829",
+    "log": "/tmp/abseil/absl/synchronization/internal/pthread_waiter.cc:39:60: error: expected ‘{’ at end of input",
+    "relevant_files": [
+      "absl/synchronization/internal/pthread_waiter.cc"
+    ],
+    "error_type": "linker_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "opencv_opencv-issue-25675",
+    "log": "/Users/thewoz/Dropbox/Research/Github/thewoz/opencv/modules/calib3d/src/usac/essential_solver.cpp:265:13: error: no matching function for call to 'dgeev_'\r\n            OCV_LAPACK_FUNC(dgeev)(&jobvl, &jobvr, &mat_order, action_mat_data, &lda, wr, wi, eig_vecs, &ldvl,\r\n            ^~~~~~~~~~~~~~~~~~~~~~\r\n/Users/thewoz/Dropbox/Research/Github/thewoz/opencv/build/opencv_lapack.h:25:28: note: expanded from macro 'OCV_LAPACK_FUNC'\r\n#define OCV_LAPACK_FUNC(f) f##_\r\n                           ^~~~\r\n<scratch space>:66:1: note: expanded from here\r\ndgeev_\r\n^~~~~~\r\n/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.5.sdk/System/Library/Frameworks/vecLib.framework/Headers/lapack.h:23405:1: note: candidate function not viable: no known conversion from 'int *' to 'const __LAPACK_int * _Nonnull' (aka 'const long *') for 3rd argument\r\ndgeev_(\r\n^\r\n1 error generated.\r\nmake[2]: *** [modules/calib3d/CMakeFiles/opencv_calib3d.dir/src/usac/essential_solver.cpp.o] Error 1",
+    "relevant_files": [
+      "modules/core/src/minmax.cpp"
+    ],
+    "error_type": "compiler_error",
+    "source": "github",
+    "repo": "opencv/opencv",
+    "issue_url": "https://github.com/opencv/opencv/issues/25675",
+    "split": "dev"
+  },
+  {
+    "id": "llvm_llvm-project-issue-152419",
+    "log": "/b/f/w/src/git/out/llvm-project/compiler-rt/lib/ubsan_minimal/ubsan_minimal_handlers.cpp:102:3: error: no matching function for call to 'format_msg'\r\n  102 |   format_msg(kind, caller, msg_buf, msg_buf + sizeof(msg_buf));\r\n      |   ^~~~~~~~~~\r\n/b/f/w/src/git/out/llvm-project/compiler-rt/lib/ubsan_minimal/ubsan_minimal_handlers.cpp:37:13:\r\nnote: candidate function not viable: requires 5 arguments, but 4 were\r\nprovided\r\n   37 | static void format_msg(const char *kind, uintptr_t caller,\r\n      |             ^          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n   38 |                        const uintptr_t *address, char *buf,\r\nconst char *end) {",
+    "relevant_files": [
+      "compiler-rt/lib/ubsan_minimal/ubsan_minimal_handlers.cpp"
+    ],
+    "error_type": "compiler_error",
+    "source": "github",
+    "repo": "llvm/llvm-project",
+    "issue_url": "https://github.com/llvm/llvm-project/pull/152419",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-include_error-absl_log_internal_log_format.cc-d32e1b86",
+    "log": "/tmp/abseil/absl/log/internal/log_format.cc:174:30: error: ‘PrefixFormat’ has not been declared\n/tmp/abseil/absl/log/internal/log_format.cc:180:33: error: ‘PrefixFormat’ has not been declared\n/tmp/abseil/absl/log/internal/log_format.cc:194:34: error: ‘PrefixFormat’ has not been declared\n/tmp/abseil/absl/log/internal/log_format.cc:198:17: error: ‘PrefixFormat’ has not been declared",
+    "relevant_files": [
+      "absl/log/internal/log_format.cc"
+    ],
+    "error_type": "include_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-compiler_error-absl_strings_internal_cord_rep_btree.cc-5b39dc35",
+    "log": "/tmp/abseil/absl/strings/internal/cord_rep_btree.cc:596:54: error: ‘struct absl::cord_internal::CordRepFlat’ has no member named ‘__BOGUS_Capacity’",
+    "relevant_files": [
+      "absl/strings/internal/cord_rep_btree.cc"
+    ],
+    "error_type": "compiler_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-linker_error-absl_status_internal_status_matchers.cc-677f6b0e",
+    "log": "/tmp/abseil/absl/status/internal/status_matchers.h:22:10: fatal error: gmock/gmock.h: No such file or directory",
+    "relevant_files": [
+      "absl/status/internal/status_matchers.cc"
+    ],
+    "error_type": "linker_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "llvm_llvm-project-issue-63399",
+    "log": "#0 0x000055d251826584 llvm::sys::PrintStackTrace(llvm::raw_ostream&, int)\r\n #1 0x000055d251826bd4 SignalHandler(int) Signals.cpp:0:0\r\n #2 0x00007ff1def43520 (/lib/x86_64-linux-gnu/libc.so.6+0x42520)\r\n #3 0x000055d251970e20 Fortran::frontend::CodeGenAction::executeAction()\r\n #4 0x000055d251846fde Fortran::frontend::FrontendAction::execute()\r\n #5 0x000055d25183f1f7 Fortran::frontend::CompilerInstance::executeAction(Fortran::frontend::FrontendAction&)\r\n #6 0x000055d2518497b6 Fortran::frontend::executeCompilerInvocation(Fortran::frontend::CompilerInstance*)\r\n #7 0x000055d2508c1824 fc1_main(llvm::ArrayRef<char const*>, char const*)\r\n #8 0x000055d2508bf9d2 main\r\n #9 0x00007ff1def2ad90 __libc_start_call_main ./csu/../sysdeps/nptl/libc_start_call_main.h:58:16\r\n#10 0x00007ff1def2ae40 call_init ./csu/../csu/libc-start.c:128:20\r\n#11 0x00007ff1def2ae40 __libc_start_main ./csu/../csu/libc-start.c:379:5\r\n#12 0x000055d2508bee35 _start\r\nflang-new: error: unable to execute command: Segmentation fault\r\nflang-new: error: flang frontend command failed due to signal (use -v to see invocation)\r\nflang-new version 17.0.0 (https://github.com/llvm/llvm-project.git 64083172eea26e50c8b22b85697a825be8bda424)\r\nTarget: x86_64-unknown-linux-gnu\r\nThread model: posix",
+    "relevant_files": [
+      "flang/include/flang/Optimizer/Builder/HLFIRTools.h",
+      "flang/lib/Optimizer/Builder/HLFIRTools.cpp",
+      "flang/lib/Optimizer/HLFIR/Transforms/SimplifyHLFIRIntrinsics.cpp"
+    ],
+    "error_type": "segfault",
+    "source": "github",
+    "repo": "llvm/llvm-project",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/63399",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-compiler_error-absl_time_internal_cctz_src_time_zone_format.cc-353c0929",
+    "log": "/tmp/abseil/absl/time/internal/cctz/src/time_zone_format.cc:482:32: error: ‘__BOGUS_string’ is not a member of ‘std’; did you mean ‘__sso_string’?",
+    "relevant_files": [
+      "absl/time/internal/cctz/src/time_zone_format.cc"
+    ],
+    "error_type": "compiler_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-include_error-absl_log_flags.cc-b3bae33c",
+    "log": "/tmp/abseil/absl/log/flags.cc:41:18: error: ‘FLAGS_minloglevel’ was not declared in this scope\n/tmp/abseil/absl/log/flags.cc:42:18: error: ‘FLAGS_log_prefix’ was not declared in this scope",
+    "relevant_files": [
+      "absl/log/flags.cc"
+    ],
+    "error_type": "include_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-compiler_error-absl_strings_internal_cord_rep_btree_reader.cc-0d63d906",
+    "log": "/tmp/abseil/absl/strings/internal/cord_rep_btree_reader.cc:48:30: error: ‘__BOGUS_EdgeData’ was not declared in this scope",
+    "relevant_files": [
+      "absl/strings/internal/cord_rep_btree_reader.cc"
+    ],
+    "error_type": "compiler_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "opencv_opencv-issue-22892",
+    "log": "$ PYTHONFAULTHANDLER=1 python3 crash_repo.py\r\nFatal Python error: Segmentation fault\r\n\r\nCurrent thread 0x00007fd41ab83740 (most recent call first):\r\n  File \"/xxx/crash_repo.py\", line 5 in <module>\r\n\r\nExtension modules: numpy.core._multiarray_umath, numpy.core._multiarray_tests, numpy.linalg._umath_linalg, numpy.fft._pocketfft_internal, numpy.random._common, numpy.random.bit_generator, numpy.random._bounded_integers, numpy.random._mt19937, numpy.random.mtrand, numpy.random._philox, numpy.random._pcg64, numpy.random._sfc64, numpy.random._generator, cv2 (total: 14)\r\nSegmentation fault (core dumped)",
+    "relevant_files": [
+      "modules/videoio/include/opencv2/videoio.hpp",
+      "modules/videoio/src/cap.cpp",
+      "modules/videoio/src/cap_ffmpeg.cpp",
+      "modules/videoio/src/cap_interface.hpp",
+      "modules/videoio/test/test_ffmpeg.cpp",
+      "modules/videoio/test/test_orientation.cpp"
+    ],
+    "error_type": "segfault",
+    "source": "github",
+    "repo": "opencv/opencv",
+    "issue_url": "https://github.com/opencv/opencv/issues/22892",
+    "split": "dev"
+  },
+  {
+    "id": "llvm_llvm-project-issue-182737",
+    "log": "platform/test.h:9:16: error: type specifier missing, defaults to 'int'; ISO C99 and later do not support implicit int [-Wimplicit-int]\n    9 | typedef bool (*func_t)(uint8_t a);\n      |                ^\n      |               int\nplatform/test.h:9:24: error: unknown type name 'uint8_t'\n    9 | typedef bool (*func_t)(uint8_t a);\n      |                        ^\nplatform/test.h:9:9: error: type specifier missing, defaults to 'int'; ISO C99 and later do not support implicit int [-Wimplicit-int]\n    9 | typedef bool (*func_t)(uint8_t a);\n      | ~~~~~~~ ^\n      | int\nplatform/test.h:9:14: error: function cannot return function type 'int (int)'\n    9 | typedef bool (*func_t)(uint8_t a);\n      |              ^\nTranslationUnitDecl 0xcbf156008 <<invalid sloc>> <invalid sloc>\n|-TypedefDecl 0xcbf1f2088 <<invalid sloc>> <invalid sloc> implicit __int128_t '__int128'\n| `-BuiltinType 0xcbf1565d0 '__int128'\n|-TypedefDecl 0xcbf1f20f8 <<invalid sloc>> <invalid sloc> implicit __uint128_t 'unsigned __int128'\n| `-BuiltinType 0xcbf1565f0 'unsigned __int128'\n|-TypedefDecl 0xcbf1f2400 <<invalid sloc>> <invalid sloc> implicit __NSConstantString 'struct __NSConstantString_tag'\n| `-RecordType 0xcbf1f21d0 'struct __NSConstantString_tag'\n|   `-Record 0xcbf1f2150 '__NSConstantString_tag'\n|-TypedefDecl 0xcbf1f24a8 <<invalid sloc>> <invalid sloc> implicit __Int8x8_t '__attribute__((neon_vector_type(8))) signed char'\n| `-VectorType 0xcbf1f2460 '__attribute__((neon_vector_type(8))) signed char' neon 8\n|   `-BuiltinType 0xcbf1560d0 'signed char'\n|-TypedefDecl 0xcbf1f2548 <<invalid sloc>> <invalid sloc> implicit __Int16x4_t '__attribute__((neon_vector_type(4))) short'\n| `-VectorType 0xcbf1f2500 '__attribute__((neon_vector_type(4))) short' neon 4\n|   `-BuiltinType 0xcbf1560f0 'short'\n|-TypedefDecl 0xcbf1f25e8 <<invalid sloc>> <invalid sloc> implicit __Int32x2_t '__attribute__((neon_vector_type(2))) int'\n| `-VectorType 0xcbf1f25a0 '__attribute__((neon_vector_type(2))) int' neon 2\n|   `-BuiltinType 0xcbf156110 'int'\n|-TypedefDecl 0xcbf1f2688 <<invalid sloc>> <invalid sloc> implicit __Uint8x8_t '__attribute__((neon_vector_type(8))) unsigned char'\n| `-VectorType 0xcbf1f2640 '__attribute__((neon_vector_type(8))) unsigned char' neon 8\n|   `-BuiltinType 0xcbf156170 'unsigned char'\n|-TypedefDecl 0xcbf1f2728 <<invalid sloc>> <invalid sloc> implicit __Uint16x4_t '__attribute__((neon_vector_type(4))) unsigned short'\n| `-VectorType 0xcbf1f26e0 '__attribute__((neon_vector_type(4))) unsigned short' neon 4\n|   `-BuiltinType 0xcbf156190 'unsigned short'\n|-TypedefDecl 0xcbf1f27c8 <<invalid sloc>> <invalid sloc> implicit __Uint32x2_t '__attribute__((neon_vector_type(2))) unsigned int'\n| `-VectorType 0xcbf1f2780 '__attribute__((neon_vector_type(2))) unsigned int' neon 2\n|   `-BuiltinType 0xcbf1561b0 'unsigned int'\n|-TypedefDecl 0xcbf1f2868 <<invalid sloc>> <invalid sloc> implicit __Float16x4_t '__attribute__((neon_vector_type(4))) __fp16'\n| `-VectorType 0xcbf1f2820 '__attribute__((neon_vector_type(4))) __fp16' neon 4\n|   `-BuiltinType 0xcbf156f20 '__fp16'\n|-TypedefDecl 0xcbf1f2908 <<invalid sloc>> <invalid sloc> implicit __Float32x2_t '__attribute__((neon_vector_type(2))) float'\n| `-VectorType 0xcbf1f28c0 '__attribute__((neon_vector_type(2))) float' neon 2\n|   `-BuiltinType 0xcbf156210 'float'\n|-TypedefDecl 0xcbf1f29a8 <<invalid sloc>> <invalid sloc> implicit __Poly8x8_t '__attribute__((neon_polyvector_type(8))) unsigned char'\n| `-VectorType 0xcbf1f2960 '__attribute__((neon_polyvector_type(8))) unsigned char' neon poly 8\n|   `-BuiltinType 0xcbf156170 'unsigned char'\n|-TypedefDecl 0xcbf1f2a48 <<invalid sloc>> <invalid sloc> implicit __Poly16x4_t '__attribute__((neon_polyvector_type(4))) unsigned short'\n| `-VectorType 0xcbf1f2a00 '__attribute__((neon_polyvector_type(4))) unsigned short' neon poly 4\n|   `-BuiltinType 0xcbf156190 'unsigned short'\n|-TypedefDecl 0xcbf1f2ae8 <<invalid sloc>> <invalid sloc> implicit __Bfloat16x4_t '__attribute__((neon_vector_type(4))) __bf16'\n| `-VectorType 0xcbf1f2aa0 '__attribute__((neon_vector_type(4))) __bf16' neon 4\n|   `-BuiltinType 0xcbf156f40 '__bf16'\n|-TypedefDecl 0xcbf1f2b88 <<invalid sloc>> <invalid sloc> implicit __Int8x16_t '__attribute__((neon_vector_type(16))) signed char'\n| `-VectorType 0xcbf1f2b40 '__attribute__((neon_vector_type(16))) signed char' neon 16\n|   `-BuiltinType 0xcbf1560d0 'signed char'\n|-TypedefDecl 0xcbf1f2c28 <<invalid sloc>> <invalid sloc> implicit __Int16x8_t '__attribute__((neon_vector_type(8))) short'\n| `-VectorType 0xcbf1f2be0 '__attribute__((neon_vector_type(8))) short' neon 8\n|   `-BuiltinType 0xcbf1560f0 'short'\n|-TypedefDecl 0xcbf1f2cc8 <<invalid sloc>> <invalid sloc> implicit __Int32x4_t '__attribute__((neon_vector_type(4))) int'\n| `-VectorType 0xcbf1f2c80 '__attribute__((neon_vector_type(4))) int' neon 4\n|   `-BuiltinType 0xcbf156110 'int'\n|-TypedefDecl 0xcbf1f2d68 <<invalid sloc>> <invalid sloc> implicit __Int64x2_t '__attribute__((neon_vector_type(2))) long'\n| `-VectorType 0xcbf1f2d20 '__attribute__((neon_vector_type(2))) long' neon 2\n|   `-BuiltinType 0xcbf156130 'long'\n|-TypedefDecl 0xcbf1f2e08 <<invalid sloc>> <invalid sloc> implicit __Uint8x16_t '__attribute__((neon_vector_type(16))) unsigned char'\n| `-VectorType 0xcbf1f2dc0 '__attribute__((neon_vector_type(16))) unsigned char' neon 16\n|   `-BuiltinType 0xcbf156170 'unsigned char'\n|-TypedefDecl 0xcbf1f2ea8 <<invalid sloc>> <invalid sloc> implicit __Uint16x8_t '__attribute__((neon_vector_type(8))) unsigned short'\n| `-VectorType 0xcbf1f2e60 '__attribute__((neon_vector_type(8))) unsigned short' neon 8\n|   `-BuiltinType 0xcbf156190 'unsigned short'\n|-TypedefDecl 0xcbf1f2f48 <<invalid sloc>> <invalid sloc> implicit __Uint32x4_t '__attribute__((neon_vector_type(4))) unsigned int'\n| `-VectorType 0xcbf1f2f00 '__attribute__((neon_vector_type(4))) unsigned int' neon 4\n|   `-BuiltinType 0xcbf1561b0 'unsigned int'\n|-TypedefDecl 0xcbf1f3000 <<invalid sloc>> <invalid sloc> implicit __Uint64x2_t '__attribute__((neon_vector_type(2))) unsigned long'\n| `-VectorType 0xcbf1f2fa0 '__attribute__((neon_vector_type(2))) unsigned long' neon 2\n|   `-BuiltinType 0xcbf1561d0 'unsigned long'\n|-TypedefDecl 0xcbf1f30a8 <<invalid sloc>> <invalid sloc> implicit __Float16x8_t '__attribute__((neon_vector_type(8))) __fp16'\n| `-VectorType 0xcbf1f3060 '__attribute__((neon_vector_type(8))) __fp16' neon 8\n|   `-BuiltinType 0xcbf156f20 '__fp16'\n|-TypedefDecl 0xcbf1f3148 <<invalid sloc>> <invalid sloc> implicit __Float32x4_t '__attribute__((neon_vector_type(4))) float'\n| `-VectorType 0xcbf1f3100 '__attribute__((neon_vector_type(4))) float' neon 4\n|   `-BuiltinType 0xcbf156210 'float'\n|-TypedefDecl 0xcbf1f31e8 <<invalid sloc>> <invalid sloc> implicit __Float64x2_t '__attribute__((neon_vector_type(2))) double'\n| `-VectorType 0xcbf1f31a0 '__attribute__((neon_vector_type(2))) double' neon 2\n|   `-BuiltinType 0xcbf156230 'double'\n|-TypedefDecl 0xcbf1f3288 <<invalid sloc>> <invalid sloc> implicit __Poly8x16_t '__attribute__((neon_polyvector_type(16))) unsigned char'\n| `-VectorType 0xcbf1f3240 '__attribute__((neon_polyvector_type(16))) unsigned char' neon poly 16\n|   `-BuiltinType 0xcbf156170 'unsigned char'\n|-TypedefDecl 0xcbf1f3328 <<invalid sloc>> <invalid sloc> implicit __Poly16x8_t '__attribute__((neon_polyvector_type(8))) unsigned short'\n| `-VectorType 0xcbf1f32e0 '__attribute__((neon_polyvector_type(8))) unsigned short' neon poly 8\n|   `-BuiltinType 0xcbf156190 'unsigned short'\n|-TypedefDecl 0xcbf1f33c8 <<invalid sloc>> <invalid sloc> implicit __Poly64x2_t '__attribute__((neon_polyvector_type(2))) unsigned long'\n| `-VectorType 0xcbf1f3380 '__attribute__((neon_polyvector_type(2))) unsigned long' neon poly 2\n|   `-BuiltinType 0xcbf1561d0 'unsigned long'\n|-TypedefDecl 0xcbf1f3468 <<invalid sloc>> <invalid sloc> implicit __Bfloat16x8_t '__attribute__((neon_vector_type(8))) __bf16'\n| `-VectorType 0xcbf1f3420 '__attribute__((neon_vector_type(8))) __bf16' neon 8\n|   `-BuiltinType 0xcbf156f40 '__bf16'\n|-TypedefDecl 0xcbf1f3508 <<invalid sloc>> <invalid sloc> implicit __Mfloat8x8_t '__attribute__((neon_vector_type(8))) __mfp8'\n| `-VectorType 0xcbf1f34c0 '__attribute__((neon_vector_type(8))) __mfp8' neon 8\n|   `-BuiltinType 0xcbf156eb0 '__mfp8'\n|-TypedefDecl 0xcbf1f35a8 <<invalid sloc>> <invalid sloc> implicit __Mfloat8x16_t '__attribute__((neon_vector_type(16))) __mfp8'\n| `-VectorType 0xcbf1f3560 '__attribute__((neon_vector_type(16))) __mfp8' neon 16\n|   `-BuiltinType 0xcbf156eb0 '__mfp8'\n|-TypedefDecl 0xcbf1f3610 <<invalid sloc>> <invalid sloc> implicit __SVInt8_t '__SVInt8_t'\n| `-BuiltinType 0xcbf1567b0 '__SVInt8_t'\n|-TypedefDecl 0xcbf1f3678 <<invalid sloc>> <invalid sloc> implicit __SVInt16_t '__SVInt16_t'\n| `-BuiltinType 0xcbf1567d0 '__SVInt16_t'\n|-TypedefDecl 0xcbf1f36e0 <<invalid sloc>> <invalid sloc> implicit __SVInt32_t '__SVInt32_t'\n| `-BuiltinType 0xcbf1567f0 '__SVInt32_t'\n|-TypedefDecl 0xcbf1f3748 <<invalid sloc>> <invalid sloc> implicit __SVInt64_t '__SVInt64_t'\n| `-BuiltinType 0xcbf156810 '__SVInt64_t'\n|-TypedefDecl 0xcbf1f37b0 <<invalid sloc>> <invalid sloc> implicit __SVUint8_t '__SVUint8_t'\n| `-BuiltinType 0xcbf156830 '__SVUint8_t'\n|-TypedefDecl 0xcbf1f3818 <<invalid sloc>> <invalid sloc> implicit __SVUint16_t '__SVUint16_t'\n| `-BuiltinType 0xcbf156850 '__SVUint16_t'\n|-TypedefDecl 0xcbf1f3880 <<invalid sloc>> <invalid sloc> implicit __SVUint32_t '__SVUint32_t'\n| `-BuiltinType 0xcbf156870 '__SVUint32_t'\n|-TypedefDecl 0xcbf1f38e8 <<invalid sloc>> <invalid sloc> implicit __SVUint64_t '__SVUint64_t'\n| `-BuiltinType 0xcbf156890 '__SVUint64_t'\n|-TypedefDecl 0xcbf1f3950 <<invalid sloc>> <invalid sloc> implicit __SVFloat16_t '__SVFloat16_t'\n| `-BuiltinType 0xcbf1568b0 '__SVFloat16_t'\n|-TypedefDecl 0xcbf1f39b8 <<invalid sloc>> <invalid sloc> implicit __SVFloat32_t '__SVFloat32_t'\n| `-BuiltinType 0xcbf1568d0 '__SVFloat32_t'\n|-TypedefDecl 0xcbf1f3a20 <<invalid sloc>> <invalid sloc> implicit __SVFloat64_t '__SVFloat64_t'\n| `-BuiltinType 0xcbf1568f0 '__SVFloat64_t'\n|-TypedefDecl 0xcbf1f3a88 <<invalid sloc>> <invalid sloc> implicit __SVBfloat16_t '__SVBfloat16_t'\n| `-BuiltinType 0xcbf156910 '__SVBfloat16_t'\n|-TypedefDecl 0xcbf1f3af0 <<invalid sloc>> <invalid sloc> implicit __SVMfloat8_t '__SVMfloat8_t'\n| `-BuiltinType 0xcbf156930 '__SVMfloat8_t'\n|-TypedefDecl 0xcbf1f3b58 <<invalid sloc>> <invalid sloc> implicit __clang_svint8x2_t '__clang_svint8x2_t'\n| `-BuiltinType 0xcbf156950 '__clang_svint8x2_t'\n|-TypedefDecl 0xcbf1f3bc0 <<invalid sloc>> <invalid sloc> implicit __clang_svint16x2_t '__clang_svint16x2_t'\n| `-BuiltinType 0xcbf156970 '__clang_svint16x2_t'\n|-TypedefDecl 0xcbf1f3c28 <<invalid sloc>> <invalid sloc> implicit __clang_svint32x2_t '__clang_svint32x2_t'\n| `-BuiltinType 0xcbf156990 '__clang_svint32x2_t'\n|-TypedefDecl 0xcbf1f3c90 <<invalid sloc>> <invalid sloc> implicit __clang_svint64x2_t '__clang_svint64x2_t'\n| `-BuiltinType 0xcbf1569b0 '__clang_svint64x2_t'\n|-TypedefDecl 0xcbf1f3cf8 <<invalid sloc>> <invalid sloc> implicit __clang_svuint8x2_t '__clang_svuint8x2_t'\n| `-BuiltinType 0xcbf1569d0 '__clang_svuint8x2_t'\n|-TypedefDecl 0xcbf1f3d60 <<invalid sloc>> <invalid sloc> implicit __clang_svuint16x2_t '__clang_svuint16x2_t'\n| `-BuiltinType 0xcbf1569f0 '__clang_svuint16x2_t'\n|-TypedefDecl 0xcbf1f3dc8 <<invalid sloc>> <invalid sloc> implicit __clang_svuint32x2_t '__clang_svuint32x2_t'\n| `-BuiltinType 0xcbf156a10 '__clang_svuint32x2_t'\n|-TypedefDecl 0xcbf1f3e30 <<invalid sloc>> <invalid sloc> implicit __clang_svuint64x2_t '__clang_svuint64x2_t'\n| `-BuiltinType 0xcbf156a30 '__clang_svuint64x2_t'\n|-TypedefDecl 0xcbf1f3e98 <<invalid sloc>> <invalid sloc> implicit __clang_svfloat16x2_t '__clang_svfloat16x2_t'\n| `-BuiltinType 0xcbf156a50 '__clang_svfloat16x2_t'\n|-TypedefDecl 0xcbf1f3f00 <<invalid sloc>> <invalid sloc> implicit __clang_svfloat32x2_t '__clang_svfloat32x2_t'\n| `-BuiltinType 0xcbf156a70 '__clang_svfloat32x2_t'\n|-TypedefDecl 0xcbf1f3f68 <<invalid sloc>> <invalid sloc> implicit __clang_svfloat64x2_t '__clang_svfloat64x2_t'\n| `-BuiltinType 0xcbf156a90 '__clang_svfloat64x2_t'\n|-TypedefDecl 0xcbf274000 <<invalid sloc>> <invalid sloc> implicit __clang_svbfloat16x2_t '__clang_svbfloat16x2_t'\n| `-BuiltinType 0xcbf156ab0 '__clang_svbfloat16x2_t'\n|-TypedefDecl 0xcbf274068 <<invalid sloc>> <invalid sloc> implicit __clang_svmfloat8x2_t '__clang_svmfloat8x2_t'\n| `-BuiltinType 0xcbf156ad0 '__clang_svmfloat8x2_t'\n|-TypedefDecl 0xcbf2740d0 <<invalid sloc>> <invalid sloc> implicit __clang_svint8x3_t '__clang_svint8x3_t'\n| `-BuiltinType 0xcbf156af0 '__clang_svint8x3_t'\n|-TypedefDecl 0xcbf274138 <<invalid sloc>> <invalid sloc> implicit __clang_svint16x3_t '__clang_svint16x3_t'\n| `-BuiltinType 0xcbf156b10 '__clang_svint16x3_t'\n|-TypedefDecl 0xcbf2741a0 <<invalid sloc>> <invalid sloc> implicit __clang_svint32x3_t '__clang_svint32x3_t'\n| `-BuiltinType 0xcbf156b30 '__clang_svint32x3_t'\n|-TypedefDecl 0xcbf274208 <<invalid sloc>> <invalid sloc> implicit __clang_svint64x3_t '__clang_svint64x3_t'\n| `-BuiltinType 0xcbf156b50 '__clang_svint64x3_t'\n|-TypedefDecl 0xcbf274270 <<invalid sloc>> <invalid sloc> implicit __clang_svuint8x3_t '__clang_svuint8x3_t'\n| `-BuiltinType 0xcbf156b70 '__clang_svuint8x3_t'\n|-TypedefDecl 0xcbf2742d8 <<invalid sloc>> <invalid sloc> implicit __clang_svuint16x3_t '__clang_svuint16x3_t'\n| `-BuiltinType 0xcbf156b90 '__clang_svuint16x3_t'\n|-TypedefDecl 0xcbf274340 <<invalid sloc>> <invalid sloc> implicit __clang_svuint32x3_t '__clang_svuint32x3_t'\n| `-BuiltinType 0xcbf156bb0 '__clang_svuint32x3_t'\n|-TypedefDecl 0xcbf2743a8 <<invalid sloc>> <invalid sloc> implicit __clang_svuint64x3_t '__clang_svuint64x3_t'\n| `-BuiltinType 0xcbf156bd0 '__clang_svuint64x3_t'\n|-TypedefDecl 0xcbf274410 <<invalid sloc>> <invalid sloc> implicit __clang_svfloat16x3_t '__clang_svfloat16x3_t'\n| `-BuiltinType 0xcbf156bf0 '__clang_svfloat16x3_t'\n|-TypedefDecl 0xcbf274478 <<invalid sloc>> <invalid sloc> implicit __clang_svfloat32x3_t '__clang_svfloat32x3_t'\n| `-BuiltinType 0xcbf156c10 '__clang_svfloat32x3_t'\n|-TypedefDecl 0xcbf2744e0 <<invalid sloc>> <invalid sloc> implicit __clang_svfloat64x3_t '__clang_svfloat64x3_t'\n| `-BuiltinType 0xcbf156c30 '__clang_svfloat64x3_t'\n|-TypedefDecl 0xcbf274548 <<invalid sloc>> <invalid sloc> implicit __clang_svbfloat16x3_t '__clang_svbfloat16x3_t'\n| `-BuiltinType 0xcbf156c50 '__clang_svbfloat16x3_t'\n|-TypedefDecl 0xcbf2745b0 <<invalid sloc>> <invalid sloc> implicit __clang_svmfloat8x3_t '__clang_svmfloat8x3_t'\n| `-BuiltinType 0xcbf156c70 '__clang_svmfloat8x3_t'\n|-TypedefDecl 0xcbf274618 <<invalid sloc>> <invalid sloc> implicit __clang_svint8x4_t '__clang_svint8x4_t'\n| `-BuiltinType 0xcbf156c90 '__clang_svint8x4_t'\n|-TypedefDecl 0xcbf274680 <<invalid sloc>> <invalid sloc> implicit __clang_svint16x4_t '__clang_svint16x4_t'\n| `-BuiltinType 0xcbf156cb0 '__clang_svint16x4_t'\n|-TypedefDecl 0xcbf2746e8 <<invalid sloc>> <invalid sloc> implicit __clang_svint32x4_t '__clang_svint32x4_t'\n| `-BuiltinType 0xcbf156cd0 '__clang_svint32x4_t'\n|-TypedefDecl 0xcbf274750 <<invalid sloc>> <invalid sloc> implicit __clang_svint64x4_t '__clang_svint64x4_t'\n| `-BuiltinType 0xcbf156cf0 '__clang_svint64x4_t'\n|-TypedefDecl 0xcbf2747b8 <<invalid sloc>> <invalid sloc> implicit __clang_svuint8x4_t '__clang_svuint8x4_t'\n| `-BuiltinType 0xcbf156d10 '__clang_svuint8x4_t'\n|-TypedefDecl 0xcbf274820 <<invalid sloc>> <invalid sloc> implicit __clang_svuint16x4_t '__clang_svuint16x4_t'\n| `-BuiltinType 0xcbf156d30 '__clang_svuint16x4_t'\n|-TypedefDecl 0xcbf274888 <<invalid sloc>> <invalid sloc> implicit __clang_svuint32x4_t '__clang_svuint32x4_t'\n| `-BuiltinType 0xcbf156d50 '__clang_svuint32x4_t'\n|-TypedefDecl 0xcbf2748f0 <<invalid sloc>> <invalid sloc> implicit __clang_svuint64x4_t '__clang_svuint64x4_t'\n| `-BuiltinType 0xcbf156d70 '__clang_svuint64x4_t'\n|-TypedefDecl 0xcbf274958 <<invalid sloc>> <invalid sloc> implicit __clang_svfloat16x4_t '__clang_svfloat16x4_t'\n| `-BuiltinType 0xcbf156d90 '__clang_svfloat16x4_t'\n|-TypedefDecl 0xcbf2749c0 <<invalid sloc>> <invalid sloc> implicit __clang_svfloat32x4_t '__clang_svfloat32x4_t'\n| `-BuiltinType 0xcbf156db0 '__clang_svfloat32x4_t'\n|-TypedefDecl 0xcbf274a28 <<invalid sloc>> <invalid sloc> implicit __clang_svfloat64x4_t '__clang_svfloat64x4_t'\n| `-BuiltinType 0xcbf156dd0 '__clang_svfloat64x4_t'\n|-TypedefDecl 0xcbf274a90 <<invalid sloc>> <invalid sloc> implicit __clang_svbfloat16x4_t '__clang_svbfloat16x4_t'\n| `-BuiltinType 0xcbf156df0 '__clang_svbfloat16x4_t'\n|-TypedefDecl 0xcbf274af8 <<invalid sloc>> <invalid sloc> implicit __clang_svmfloat8x4_t '__clang_svmfloat8x4_t'\n| `-BuiltinType 0xcbf156e10 '__clang_svmfloat8x4_t'\n|-TypedefDecl 0xcbf274b60 <<invalid sloc>> <invalid sloc> implicit __SVBool_t '__SVBool_t'\n| `-BuiltinType 0xcbf156e30 '__SVBool_t'\n|-TypedefDecl 0xcbf274bc8 <<invalid sloc>> <invalid sloc> implicit __clang_svboolx2_t '__clang_svboolx2_t'\n| `-BuiltinType 0xcbf156e50 '__clang_svboolx2_t'\n|-TypedefDecl 0xcbf274c30 <<invalid sloc>> <invalid sloc> implicit __clang_svboolx4_t '__clang_svboolx4_t'\n| `-BuiltinType 0xcbf156e70 '__clang_svboolx4_t'\n|-TypedefDecl 0xcbf274c98 <<invalid sloc>> <invalid sloc> implicit __SVCount_t '__SVCount_t'\n| `-BuiltinType 0xcbf156e90 '__SVCount_t'\n|-TypedefDecl 0xcbf274d00 <<invalid sloc>> <invalid sloc> implicit __mfp8 '__mfp8'\n| `-BuiltinType 0xcbf156eb0 '__mfp8'\n|-TypedefDecl 0xcbf156fa8 <<invalid sloc>> <invalid sloc> implicit __builtin_ms_va_list 'char *'\n| `-PointerType 0xcbf156f60 'char *'\n|   `-BuiltinType 0xcbf1560b0 'char'\n|-TypedefDecl 0xcbf1f2018 <<invalid sloc>> <invalid sloc> implicit __builtin_va_list 'char *'\n| `-PointerType 0xcbf156f60 'char *'\n|   `-BuiltinType 0xcbf1560b0 'char'\n`-TypedefDecl 0xcbf2a1398 <platform/test.h:9:1, <invalid sloc>> col:9 invalid bool 'int (int *)'PLEASE submit a bug report to https://github.com/Homebrew/homebrew-core/issues and include the crash backtrace, preprocessed source, and associated run script.\nStack dump:\n0.\tProgram arguments: /opt/homebrew/opt/llvm/bin/clang -Xclang -ast-dump -fsyntax-only -fno-color-diagnostics platform/test.h\n1.\t<eof> parser at end of file\n #0 0x000000011741cb04 llvm::sys::PrintStackTrace(llvm::raw_ostream&, int) (/opt/homebrew/Cellar/llvm/21.1.8_1/lib/libLLVM.dylib+0x3e48b04)\n #1 0x00000001136f3f4c llvm::sys::CleanupOnSignal(unsigned long) (/opt/homebrew/Cellar/llvm/21.1.8_1/lib/libLLVM.dylib+0x11ff4c)\n #2 0x00000001173f6ee8 (anonymous namespace)::CrashRecoveryContextImpl::HandleCrash(int, unsigned long) (/opt/homebrew/Cellar/llvm/21.1.8_1/lib/libLLVM.dylib+0x3e22ee8)\n #3 0x00000001173f6fc4 CrashRecoverySignalHandler(int) (/opt/homebrew/Cellar/llvm/21.1.8_1/lib/libLLVM.dylib+0x3e22fc4)\n #4 0x000000018d069764 (/usr/lib/system/libsystem_platform.dylib+0x1804e5764)\n #5 0x0000000106954340 clang::comments::Sema::resolveParamCommandIndexes(clang::comments::FullComment const*) (/opt/homebrew/Cellar/llvm/21.1.8_1/lib/libclang-cpp.dylib+0x480340)\n #6 0x0000000106954340 clang::comments::Sema::resolveParamCommandIndexes(clang::comments::FullComment const*) (/opt/homebrew/Cellar/llvm/21.1.8_1/lib/libclang-cpp.dylib+0x480340)\n #7 0x00000001069540bc clang::comments::Sema::actOnFullComment(llvm::ArrayRef<clang::comments::BlockContentComment*>) (/opt/homebrew/Cellar/llvm/21.1.8_1/lib/libclang-cpp.dylib+0x4800bc)\n #8 0x0000000106950078 clang::comments::Parser::parseFullComment() (/opt/homebrew/Cellar/llvm/21.1.8_1/lib/libclang-cpp.dylib+0x47c078)\n #9 0x0000000106cbeebc clang::RawComment::parse(clang::ASTContext const&, clang::Preprocessor const*, clang::Decl const*) const (/opt/homebrew/Cellar/llvm/21.1.8_1/lib/libclang-cpp.dylib+0x7eaebc)\n#10 0x00000001068d18c4 clang::ASTNodeTraverser<clang::ASTDumper, clang::TextNodeDumper>::Visit(clang::Decl const*, bool)::'lambda'()::operator()() const (/opt/homebrew/Cellar/llvm/21.1.8_1/lib/libclang-cpp.dylib+0x3fd8c4)\n#11 0x00000001068d5b74 void clang::TextTreeStructure::AddChild<clang::ASTNodeTraverser<clang::ASTDumper, clang::TextNodeDumper>::Visit(clang::Decl const*, bool)::'lambda'()>(llvm::StringRef, clang::ASTNodeTraverser<clang::ASTDumper, clang::TextNodeDumper>::Visit(clang::Decl const*, bool)::'lambda'())::'lambda'(bool)::operator()(bool) const (/opt/homebrew/Cellar/llvm/21.1.8_1/lib/libclang-cpp.dylib+0x401b74)\n#12 0x00000001068d159c void clang::TextTreeStructure::AddChild<clang::ASTNodeTraverser<clang::ASTDumper, clang::TextNodeDumper>::Visit(clang::Decl const*, bool)::'lambda'()>(llvm::StringRef, clang::ASTNodeTraverser<clang::ASTDumper, clang::TextNodeDumper>::Visit(clang::Decl const*, bool)::'lambda'()) (/opt/homebrew/Cellar/llvm/21.1.8_1/lib/libclang-cpp.dylib+0x3fd59c)\n#13 0x00000001068d0978 clang::Decl::dump(llvm::raw_ostream&, bool, clang::ASTDumpOutputFormat) const (/opt/homebrew/Cellar/llvm/21.1.8_1/lib/libclang-cpp.dylib+0x3fc978)\n#14 0x0000000107e6e728 (anonymous namespace)::ASTPrinter::print(clang::Decl*) (/opt/homebrew/Cellar/llvm/21.1.8_1/lib/libclang-cpp.dylib+0x199a728)\n#15 0x00000001066abd88 clang::ParseAST(clang::Sema&, bool, bool) (/opt/homebrew/Cellar/llvm/21.1.8_1/lib/libclang-cpp.dylib+0x1d7d88)\n#16 0x0000000107ef3b44 clang::FrontendAction::Execute() (/opt/homebrew/Cellar/llvm/21.1.8_1/lib/libclang-cpp.dylib+0x1a1fb44)\n#17 0x0000000107e8af64 clang::CompilerInstance::ExecuteAction(clang::FrontendAction&) (/opt/homebrew/Cellar/llvm/21.1.8_1/lib/libclang-cpp.dylib+0x19b6f64)\n#18 0x0000000107f28dd0 clang::ExecuteCompilerInvocation(clang::CompilerInstance*) (/opt/homebrew/Cellar/llvm/21.1.8_1/lib/libclang-cpp.dylib+0x1a54dd0)\n#19 0x00000001021f53a0 cc1_main(llvm::ArrayRef<char const*>, char const*, void*) (/opt/homebrew/Cellar/llvm/21.1.8_1/bin/clang-21+0x1000053a0)\n#20 0x00000001021f3550 ExecuteCC1Tool(llvm::SmallVectorImpl<char const*>&, llvm::ToolContext const&) (/opt/homebrew/Cellar/llvm/21.1.8_1/bin/clang-21+0x100003550)\n#21 0x0000000107bf4360 void llvm::function_ref<void ()>::callback_fn<clang::driver::CC1Command::Execute(llvm::ArrayRef<std::__1::optional<llvm::StringRef>>, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>>*, bool*) const::$_0>(long) (/opt/homebrew/Cellar/llvm/21.1.8_1/lib/libclang-cpp.dylib+0x1720360)\n#22 0x0000000113646cfc llvm::CrashRecoveryContext::RunSafely(llvm::function_ref<void ()>) (/opt/homebrew/Cellar/llvm/21.1.8_1/lib/libLLVM.dylib+0x72cfc)\n#23 0x0000000107bf3e98 clang::driver::CC1Command::Execute(llvm::ArrayRef<std::__1::optional<llvm::StringRef>>, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>>*, bool*) const (/opt/homebrew/Cellar/llvm/21.1.8_1/lib/libclang-cpp.dylib+0x171fe98)\n#24 0x0000000107bbde34 clang::driver::Compilation::ExecuteCommand(clang::driver::Command const&, clang::driver::Command const*&, bool) const (/opt/homebrew/Cellar/llvm/21.1.8_1/lib/libclang-cpp.dylib+0x16e9e34)\n#25 0x0000000107bda8b8 clang::driver::Driver::ExecuteCompilation(clang::driver::Compilation&, llvm::SmallVectorImpl<std::__1::pair<int, clang::driver::Command const*>>&) (/opt/homebrew/Cellar/llvm/21.1.8_1/lib/libclang-cpp.dylib+0x17068b8)\n#26 0x00000001021f2550 clang_main(int, char**, llvm::ToolContext const&) (/opt/homebrew/Cellar/llvm/21.1.8_1/bin/clang-21+0x100002550)\n#27 0x00000001021fd810 main (/opt/homebrew/Cellar/llvm/21.1.8_1/bin/clang-21+0x10000d810)\n#28 0x000000018cc95d54\nclang: error: clang frontend command failed with exit code 139 (use -v to see invocation)\nHomebrew clang version 21.1.8\nTarget: arm64-apple-darwin25.3.0\nThread model: posix\nInstalledDir: /opt/homebrew/Cellar/llvm/21.1.8_1/bin\nConfiguration file: /opt/homebrew/etc/clang/arm64-apple-darwin25.cfg\nclang: error: unable to execute command: Segmentation fault: 11\nclang: note: diagnostic msg: Error generating preprocessed source(s).",
+    "relevant_files": [
+      "llvm/lib/Target/X86/X86AsmPrinter.cpp",
+      "llvm/lib/Target/X86/X86AsmPrinter.h"
+    ],
+    "error_type": "segfault",
+    "source": "github",
+    "repo": "llvm/llvm-project",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/182737",
+    "split": "dev"
+  },
+  {
+    "id": "opencv_opencv-issue-27352",
+    "log": "[1]    11096 segmentation fault (core dumped)  ./bug",
+    "relevant_files": [
+      "modules/dnn/src/net_impl.cpp"
+    ],
+    "error_type": "segfault",
+    "source": "github",
+    "repo": "opencv/opencv",
+    "issue_url": "https://github.com/opencv/opencv/issues/27352",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-include_error-absl_random_internal_randen.cc-f67addbf",
+    "log": "/tmp/abseil/absl/random/internal/randen.cc:72:16: error: ‘RandenSlow’ has not been declared\n/tmp/abseil/absl/random/internal/randen.cc:81:1: error: ‘Randen’ does not name a type",
+    "relevant_files": [
+      "absl/random/internal/randen.cc"
+    ],
+    "error_type": "include_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-include_error-absl_synchronization_mutex.cc-f6cc5bf9",
+    "log": "/tmp/abseil/absl/synchronization/mutex.cc:89:11: error: ‘OnDeadlockCycle’ does not name a type\n/tmp/abseil/absl/synchronization/mutex.cc:92:29: error: ‘OnDeadlockCycle’ was not declared in this scope\n/tmp/abseil/absl/synchronization/mutex.cc:92:44: error: template argument 1 is invalid\n/tmp/abseil/absl/synchronization/mutex.cc:93:5: error: ‘kDeadlockDetectionDefault’ was not declared in this scope\n/tmp/abseil/absl/synchronization/mutex.cc:108:49: error: ‘Condition’ does not name a type\n/tmp/abseil/absl/synchronization/mutex.cc:468:5: error: ‘Condition’ was not declared in this scope\n/tmp/abseil/absl/synchronization/mutex.cc:473:29: error: ‘cond’ was not declared in this scope\n/tmp/abseil/absl/synchronization/mutex.cc:495:31: error: expected ‘)’ before ‘how_arg’\n/tmp/abseil/absl/synchronization/mutex.cc:508:16: error: invalid use of incomplete type ‘class absl::Mutex’\n/tmp/abseil/absl/synchronization/mutex.cc:509:9: error: ‘Condition’ does not name a type\n/tmp/abseil/absl/synchronization/mutex.cc:580:59: error: invalid use of incomplete type ‘class absl::Mutex’\n/tmp/abseil/absl/synchronization/mutex.cc:593:76: error: invalid use of incomplete type ‘class absl::Mutex’\n/tmp/abseil/absl/synchronization/mutex.cc:609:59: error: invalid use of incomplete type ‘class absl::Mutex’\n  609 | void Mutex::InternalAttemptToUseMutexInFatalSignalHandler() {\n/tmp/abseil/absl/synchronization/mutex.cc:726:21: error: invalid use of incomplete type ‘class absl::Mutex’",
+    "relevant_files": [
+      "absl/synchronization/mutex.cc"
+    ],
+    "error_type": "include_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "abseil_abseil-cpp-issue-1500",
+    "log": "absl/debugging/internal/examine_stack.cc:58:34: error: use of undeclared identifier 'MAP_ANONYMOUS'\r\n                   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);\r\n                                 ^\r\n1 error generated.",
+    "relevant_files": [
+      "absl/base/internal/low_level_alloc.cc",
+      "absl/debugging/failure_signal_handler.cc",
+      "absl/debugging/internal/examine_stack.cc",
+      "absl/debugging/internal/stack_consumption.cc",
+      "absl/debugging/symbolize_test.cc"
+    ],
+    "error_type": "compiler_error",
+    "source": "github",
+    "repo": "abseil/abseil-cpp",
+    "issue_url": "https://github.com/abseil/abseil-cpp/pull/1500",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-include_error-absl_crc_internal_crc_cord_state.cc-07dd5570",
+    "log": "/tmp/abseil/absl/crc/internal/crc_cord_state.cc:27:1: error: ‘CrcCordState’ does not name a type\n/tmp/abseil/absl/crc/internal/crc_cord_state.cc:38:1: error: ‘CrcCordState’ does not name a type\n/tmp/abseil/absl/crc/internal/crc_cord_state.cc:40:1: error: ‘CrcCordState’ does not name a type\n/tmp/abseil/absl/crc/internal/crc_cord_state.cc:45:1: error: ‘CrcCordState’ does not name a type\n/tmp/abseil/absl/crc/internal/crc_cord_state.cc:51:1: error: ‘CrcCordState’ does not name a type\n/tmp/abseil/absl/crc/internal/crc_cord_state.cc:60:1: error: ‘CrcCordState’ does not name a type\n/tmp/abseil/absl/crc/internal/crc_cord_state.cc:70:1: error: ‘CrcCordState’ does not name a type\n/tmp/abseil/absl/crc/internal/crc_cord_state.cc:74:1: error: ‘crc32c_t’ does not name a type\n/tmp/abseil/absl/crc/internal/crc_cord_state.cc:86:1: error: ‘CrcCordState’ does not name a type\n/tmp/abseil/absl/crc/internal/crc_cord_state.cc:98:6: error: ‘CrcCordState’ has not been declared\n/tmp/abseil/absl/crc/internal/crc_cord_state.cc:99:7: error: ‘IsNormalized’ was not declared in this scope; did you mean ‘Normalize’?\n/tmp/abseil/absl/crc/internal/crc_cord_state.cc:99:25: error: ‘rep’ was not declared in this scope\n/tmp/abseil/absl/crc/internal/crc_cord_state.cc:103:3: error: ‘Rep’ was not declared in this scope\n/tmp/abseil/absl/crc/internal/crc_cord_state.cc:103:8: error: ‘r’ was not declared in this scope\n/tmp/abseil/absl/crc/internal/crc_cord_state.cc:103:12: error: ‘mutable_rep’ was not declared in this scope; did you mean ‘mutable’?",
+    "relevant_files": [
+      "absl/crc/internal/crc_cord_state.cc"
+    ],
+    "error_type": "include_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-linker_error-absl_strings_internal_str_format_bind.cc-9c02d7cb",
+    "log": "/tmp/abseil/absl/strings/internal/str_format/bind.cc:42:13: warning: inline function ‘bool absl::str_format_internal::{anonymous}::BindFromPosition(int, int*, absl::Span<const absl::str_format_internal::FormatArgImpl>)’ used but never defined\n   42 | inline bool BindFromPosition(int position, int* value,\n      |             ^~~~~~~~~~~~~~~~",
+    "relevant_files": [
+      "absl/strings/internal/str_format/bind.cc"
+    ],
+    "error_type": "linker_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "llvm_llvm-project-issue-71593",
+    "log": "nvlink error   : Undefined reference to '_ZN5Eigen3fixILin1EEE' in '/tmp/inv-d9ee8d-nvptx64-nvidia-cuda-sm_89-e39f85.cubin'",
+    "relevant_files": [
+      "llvm/lib/CodeGen/RegisterCoalescer.cpp"
+    ],
+    "error_type": "linker_error",
+    "source": "github",
+    "repo": "llvm/llvm-project",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/71593",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-compiler_error-absl_log_internal_proto.cc-e0f9c220",
+    "log": "/tmp/abseil/absl/log/internal/proto.cc:113:20: error: ‘class absl::Span<const char>’ has no member named ‘__BOGUS_size’",
+    "relevant_files": [
+      "absl/log/internal/proto.cc"
+    ],
+    "error_type": "compiler_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-linker_error-absl_crc_internal_crc_non_temporal_memcpy.cc-543eca10",
+    "log": "/tmp/abseil/absl/crc/internal/crc_non_temporal_memcpy.cc:27:10: error: declaration of ‘virtual absl::crc32c_t absl::crc_internal::CrcNonTemporalMemcpyEngine::Compute(void*, const void*, std::size_t, absl::crc32c_t) const’ outside of class is not definition [-fpermissive]",
+    "relevant_files": [
+      "absl/crc/internal/crc_non_temporal_memcpy.cc"
+    ],
+    "error_type": "linker_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-compiler_error-absl_profiling_internal_periodic_sampler.cc-1f086b94",
+    "log": "/tmp/abseil/absl/profiling/internal/periodic_sampler.cc:33:7: error: ‘__BOGUS_ABSL_PREDICT_FALSE’ was not declared in this scope; did you mean ‘ABSL_PREDICT_FALSE’?",
+    "relevant_files": [
+      "absl/profiling/internal/periodic_sampler.cc"
+    ],
+    "error_type": "compiler_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-linker_error-absl_profiling_internal_exponential_biased.cc-80d7a5bd",
+    "log": "/tmp/abseil/absl/profiling/internal/exponential_biased.cc:41:9: error: declaration of ‘int64_t absl::profiling_internal::ExponentialBiased::GetSkipCount(int64_t)’ outside of class is not definition [-fpermissive]",
+    "relevant_files": [
+      "absl/profiling/internal/exponential_biased.cc"
+    ],
+    "error_type": "linker_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-include_error-absl_strings_cord.cc-25e9c302",
+    "log": "/tmp/abseil/absl/strings/cord.cc:155:32: error: ‘NewExternalRep’ is not a member of ‘absl::cord_internal’\n/tmp/abseil/absl/strings/cord.cc:158:36: error: expected primary-expression before ‘)’ token\n/tmp/abseil/absl/strings/cord.cc:165:19: error: ‘absl::Cord::InlineRep’ has not been declared\n/tmp/abseil/absl/strings/cord.cc:167:17: error: ‘kMaxInline’ was not declared in this scope; did you mean ‘absl::cord_internal::kMaxInline’?\n/tmp/abseil/absl/strings/cord.cc:169:3: error: ‘data_’ was not declared in this scope; did you mean ‘data’?\n/tmp/abseil/absl/strings/cord.cc:172:33: error: ‘absl::Cord::InlineRep’ has not been declared\n/tmp/abseil/absl/strings/cord.cc:173:15: error: ‘kMaxInline’ was not declared in this scope; did you mean ‘absl::cord_internal::kMaxInline’?\n/tmp/abseil/absl/strings/cord.cc:174:3: error: ‘ResetToEmpty’ was not declared in this scope\n/tmp/abseil/absl/strings/cord.cc:175:3: error: ‘set_inline_size’ was not declared in this scope\n/tmp/abseil/absl/strings/cord.cc:176:10: error: ‘data_’ was not declared in this scope\n/tmp/abseil/absl/strings/cord.cc:179:19: error: ‘absl::Cord::InlineRep’ has not been declared\n/tmp/abseil/absl/strings/cord.cc:180:16: error: ‘inline_size’ was not declared in this scope\n/tmp/abseil/absl/strings/cord.cc:181:17: error: ‘kMaxInline’ was not declared in this scope; did you mean ‘absl::cord_internal::kMaxInline’?\n/tmp/abseil/absl/strings/cord.cc:184:10: error: ‘data_’ was not declared in this scope\n/tmp/abseil/absl/strings/cord.cc:185:3: error: ‘set_inline_size’ was not declared in this scope",
+    "relevant_files": [
+      "absl/strings/cord.cc"
+    ],
+    "error_type": "include_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-compiler_error-absl_flags_reflection.cc-6fb3a532",
+    "log": "/tmp/abseil/absl/flags/reflection.cc:187:48: error: ‘__BOGUS_visitor’ was not declared in this scope",
+    "relevant_files": [
+      "absl/flags/reflection.cc"
+    ],
+    "error_type": "compiler_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "abseil_abseil-cpp-issue-1992",
+    "log": "[503/754] /usr/bin/c++  -I/builddir/abseil-cpp -isystem /builddir/abseil-cpp/build/googletest-src/googletest/include -isystem /builddir/abseil-cpp/build/googletest-src/googlemock/include -\nisystem /builddir/abseil-cpp/build/googletest-src/googlemock -isystem /builddir/abseil-cpp/build/googletest-src/googletest -Wall -Wextra -Wcast-qual -Wconversion-null -Wformat-security -Wn\non-virtual-dtor -Woverlength-strings -Wpointer-arith -Wundef -Wunused-local-typedefs -Wunused-result -Wvarargs -Wvla -Wwrite-strings -DNOMINMAX -Wno-deprecated-declarations -Wno-missing-de\nclarations -Wno-self-move -Wno-sign-compare -Wno-unused-function -Wno-unused-parameter -Wno-unused-private-field -MD -MT absl/synchronization/CMakeFiles/absl_mutex_test.dir/mutex_test.cc.o\n -MF absl/synchronization/CMakeFiles/absl_mutex_test.dir/mutex_test.cc.o.d -o absl/synchronization/CMakeFiles/absl_mutex_test.dir/mutex_test.cc.o -c /builddir/abseil-cpp/absl/synchronizati\non/mutex_test.cc                                                                                                                                                                            \nFAILED: [code=1] absl/synchronization/CMakeFiles/absl_mutex_test.dir/mutex_test.cc.o                                                                                                        \n/usr/bin/c++  -I/builddir/abseil-cpp -isystem /builddir/abseil-cpp/build/googletest-src/googletest/include -isystem /builddir/abseil-cpp/build/googletest-src/googlemock/include -isystem /b\nuilddir/abseil-cpp/build/googletest-src/googlemock -isystem /builddir/abseil-cpp/build/googletest-src/googletest -Wall -Wextra -Wcast-qual -Wconversion-null -Wformat-security -Wnon-virtual\n-dtor -Woverlength-strings -Wpointer-arith -Wundef -Wunused-local-typedefs -Wunused-result -Wvarargs -Wvla -Wwrite-strings -DNOMINMAX -Wno-deprecated-declarations -Wno-missing-declarations\n -Wno-self-move -Wno-sign-compare -Wno-unused-function -Wno-unused-parameter -Wno-unused-private-field -MD -MT absl/synchronization/CMakeFiles/absl_mutex_test.dir/mutex_test.cc.o -MF absl/\nsynchronization/CMakeFiles/absl_mutex_test.dir/mutex_test.cc.o.d -o absl/synchronization/CMakeFiles/absl_mutex_test.dir/mutex_test.cc.o -c /builddir/abseil-cpp/absl/synchronization/mutex_t\nest.cc                                                                                                                                                                                      \n/builddir/abseil-cpp/absl/synchronization/mutex_test.cc: In member function ‘virtual void {anonymous}::Mutex_FunctorCondition_Test::TestBody()’:                                            \n/builddir/abseil-cpp/absl/synchronization/mutex_test.cc:1028:35: error: no matching function for call to ‘absl::Condition::Condition(std::_Bind<std::less<int>(int, std::reference_wrapper<c\nonst int>)>*)’                                                                                                                                                                              \n 1028 |     absl::Condition c(&is_positive);                                                                                                                                                \n      |                                   ^                                                                                                                                                 \n  • there are 10 candidates                                                                                                                                                                 \nIn file included from /builddir/abseil-cpp/absl/synchronization/mutex_test.cc:15:                                                                                                           \n    • candidate 1: ‘template<class T, class E> absl::Condition::Condition(const T*)’                                                                                                        \n      /builddir/abseil-cpp/absl/synchronization/mutex.h:871:12:                                                                                                                             \n        871 |   explicit Condition(const T* absl_nonnull obj)                                                                                                                               \n            |            ^~~~~~~~~                                                                                                                                                          \n      • template argument deduction/substitution failed:                                                                                                                                    \n        • error: no matches converting function ‘operator()’ to type ‘bool (class std::_Bind<std::less<int>(int, std::reference_wrapper<const int>)>::*)() const’                           \n          /builddir/abseil-cpp/absl/synchronization/mutex.h:869:47:                                                                                                                         \n            869 |   template <typename T, typename E = decltype(static_cast<bool (T::*)() const>(                                                                                           \n                |                                               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~                                                                                           \n            870 |                             &T::operator()))>                                                                                                                             \n                |                             ~~~~~~~~~~~~~~~                                                                                                                               \nIn file included from /builddir/abseil-cpp/absl/meta/type_traits.h:39,                                                                                                                      \n                 from /builddir/abseil-cpp/absl/synchronization/mutex.h:73:                                                                                                                 \n        • candidate is: ‘template<class ... _Args, class _Self, class _Self_nonref, typename std::enable_if<(! std::is_volatile<_Self_nonref>::value), int>::type <anonymous>, class _Result> constexpr _Result std::_Bind<_Functor(_Bound_args ...)>::operator()(this _Self&&, _Args&& ...) [with _Args = {_Args ...}; _Self_nonref = _Self; typename std::enable_if<(! std::is_volatile<_Self_nonref>::value), int>::type <anonymous> = _Self_nonref; _Result = <anonymous>; _Functor = std::less<int>; _Bound_args = {int, std::reference_wrapper<const int>}]’                  \n          /usr/include/c++/16/functional:635:9:                                                                                                                                             \n            635 |         operator()(this _Self&& __self, _Args&&... __args)                                                                                                                \n                |         ^~~~~~~~                                                                                                                                                          \n    • candidate 2: ‘template<class T> absl::Condition::Condition(const T*, bool (absl::type_identity<T>::type::*)() const)’                                                                 \n      /builddir/abseil-cpp/absl/synchronization/mutex.h:836:3:                                                                                                                              \n        836 |   Condition(                                                                                                                                                                  \n            |   ^~~~~~~~~                                                                                                                                                                   \n      • candidate expects 2 arguments, 1 provided                                                                                                                                           \n    • candidate 3: ‘template<class T> absl::Condition::Condition(T*, bool (absl::type_identity<T>::type::*)())’                                                                             \n      /builddir/abseil-cpp/absl/synchronization/mutex.h:830:3:                                                                                                                              \n        830 |   Condition(                                                                                                                                                                  \n            |   ^~~~~~~~~                                                                                                                                                                   \n      • candidate expects 2 arguments, 1 provided                                                                                                                                           \n    • candidate 4: ‘template<class T, class> absl::Condition::Condition(bool (*)(T*), typename absl::type_identity<T>::type*)’                                                              \n      /builddir/abseil-cpp/absl/synchronization/mutex.h:816:3:                                                                                                                              \n        816 |   Condition(                                                                                                                                                                  \n            |   ^~~~~~~~~                                                                                                                                                                   \n      • candidate expects 2 arguments, 1 provided                                                                                                                                           \n    • candidate 5: ‘template<class T> absl::Condition::Condition(bool (*)(T*), T*)’                                                                                                         \n      /builddir/abseil-cpp/absl/synchronization/mutex.h:801:3:                                                                                                                              \n        801 |   Condition(bool (*absl_nonnull func)(T* absl_nullability_unknown),                                                                                                           \n            |   ^~~~~~~~~                                                                                                                                                                   \n      • candidate expects 2 arguments, 1 provided                                                                                                                                           \n    • candidate 6: ‘constexpr absl::Condition::Condition()’                                                                                                                                 \n      /builddir/abseil-cpp/absl/synchronization/mutex.h:952:13:                                                                                                                             \n        952 |   constexpr Condition() : eval_(AlwaysTrue), arg_(nullptr) {}                                                                                                                 \n            |             ^~~~~~~~~                                                                                                                                                         \n      • candidate expects 0 arguments, 1 provided                                                                                                                                           \n    • candidate 7: ‘absl::Condition::Condition(const bool*)’                                                                                                                                \n      /builddir/abseil-cpp/absl/synchronization/mutex.h:842:12:                                                                                                                             \n        842 |   explicit Condition(const bool* absl_nonnull cond);                                                                                                                          \n            |            ^~~~~~~~~                                                                                                                                                          \n      • no known conversion for argument 1 from ‘std::_Bind<std::less<int>(int, std::reference_wrapper<const int>)>*’ to ‘const bool*’                                                      \n        /builddir/abseil-cpp/absl/synchronization/mutex.h:842:47:                                                                                                                           \n          842 |   explicit Condition(const bool* absl_nonnull cond);                                                                                                                        \n              |                      ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~                                                                                                                          \n    • candidate 8: ‘absl::Condition::Condition(bool (*)(void*), void*)’                                                                                                                     \n      /builddir/abseil-cpp/absl/synchronization/mutex.h:788:3:                                                                                                                              \n        788 |   Condition(bool (*absl_nonnull func)(void* absl_nullability_unknown),                                                                                                        \n            |   ^~~~~~~~~                                                                                                                                                                   \n      • candidate expects 2 arguments, 1 provided                                                                                                                                           \n    • candidate 9: ‘constexpr absl::Condition::Condition(const absl::Condition&)’                                                                                                           \n      /builddir/abseil-cpp/absl/synchronization/mutex.h:785:7:                                                                                                                              \n        785 | class Condition {                                                                                                                                                             \n            |       ^~~~~~~~~                                                                                                                                                               \n      • no known conversion for argument 1 from ‘std::_Bind<std::less<int>(int, std::reference_wrapper<const int>)>*’ to ‘const absl::Condition&’                                           \n    • candidate 10: ‘constexpr absl::Condition::Condition(absl::Condition&&)’                                                                                                               \n      • no known conversion for argument 1 from ‘std::_Bind<std::less<int>(int, std::reference_wrapper<const int>)>*’ to ‘absl::Condition&&’                                                \nAt global scope:                                                                                                                                                                            \ncc1plus: note: unrecognized command-line option ‘-Wno-unused-private-field’ may have been intended to silence earlier diagnostics",
+    "relevant_files": [
+      "absl/synchronization/mutex.h",
+      "absl/synchronization/mutex_test.cc"
+    ],
+    "error_type": "compiler_error",
+    "source": "github",
+    "repo": "abseil/abseil-cpp",
+    "issue_url": "https://github.com/abseil/abseil-cpp/issues/1992",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-include_error-absl_strings_str_split.cc-f379dba4",
+    "log": "/tmp/abseil/absl/strings/str_split.cc:85:1: error: ‘ByString’ does not name a type\n/tmp/abseil/absl/strings/str_split.cc:87:19: error: ‘ByString’ has not been declared\n/tmp/abseil/absl/strings/str_split.cc:87:70: error: non-member function ‘std::string_view absl::Find(std::string_view, size_t)’ cannot have cv-qualifier\n/tmp/abseil/absl/strings/str_split.cc:88:7: error: ‘delimiter_’ was not declared in this scope\n/tmp/abseil/absl/strings/str_split.cc:96:28: error: ‘delimiter_’ was not declared in this scope\n/tmp/abseil/absl/strings/str_split.cc:99:19: error: ‘ByAsciiWhitespace’ has not been declared\n/tmp/abseil/absl/strings/str_split.cc:100:55: error: non-member function ‘std::string_view absl::Find(std::string_view, size_t)’ cannot have cv-qualifier\n/tmp/abseil/absl/strings/str_split.cc:99:19: error: redefinition of ‘std::string_view absl::Find(std::string_view, size_t)’\n/tmp/abseil/absl/strings/str_split.cc:108:19: error: ‘ByChar’ has not been declared\n/tmp/abseil/absl/strings/str_split.cc:108:68: error: non-member function ‘std::string_view absl::Find(std::string_view, size_t)’ cannot have cv-qualifier\n/tmp/abseil/absl/strings/str_split.cc:108:19: error: redefinition of ‘std::string_view absl::Find(std::string_view, size_t)’\n/tmp/abseil/absl/strings/str_split.cc:109:32: error: ‘c_’ was not declared in this scope\n/tmp/abseil/absl/strings/str_split.cc:119:1: error: ‘ByAnyChar’ does not name a type\n/tmp/abseil/absl/strings/str_split.cc:121:19: error: ‘ByAnyChar’ has not been declared\n/tmp/abseil/absl/strings/str_split.cc:121:71: error: non-member function ‘std::string_view absl::Find(std::string_view, size_t)’ cannot have cv-qualifier",
+    "relevant_files": [
+      "absl/strings/str_split.cc"
+    ],
+    "error_type": "include_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-compiler_error-absl_log_internal_fnmatch.cc-8034c70c",
+    "log": "/tmp/abseil/absl/log/internal/fnmatch.cc:49:44: error: ‘using string_view = class std::basic_string_view<char>’ {aka ‘class std::basic_string_view<char>’} has no member named ‘__BOGUS_find_first_of’",
+    "relevant_files": [
+      "absl/log/internal/fnmatch.cc"
+    ],
+    "error_type": "compiler_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-linker_error-absl_time_time.cc-7e251cc6",
+    "log": "/tmp/abseil/absl/time/time.cc:54:40: warning: inline function ‘absl::time_internal::cctz::time_point<std::chrono::duration<long int> > absl::{anonymous}::unix_epoch()’ used but never defined\n   54 | inline cctz::time_point<cctz::seconds> unix_epoch() ;\n      |                                        ^~~~~~~~~~",
+    "relevant_files": [
+      "absl/time/time.cc"
+    ],
+    "error_type": "linker_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-include_error-absl_base_internal_spinlock_wait.cc-9820881f",
+    "log": "/tmp/abseil/absl/base/internal/spinlock_linux.inc:61:5: error: ‘absl::base_internal::SchedulingMode’ has not been declared\n/tmp/abseil/absl/base/internal/spinlock_wait.cc:40:29: error: ‘SpinLockWaitTransition’ does not name a type\n/tmp/abseil/absl/base/internal/spinlock_wait.cc:41:23: error: ‘absl::base_internal::SchedulingMode’ has not been declared\n/tmp/abseil/absl/base/internal/spinlock_wait.cc:46:41: error: request for member ‘from’ in ‘*(trans + ((sizetype)(((long unsigned int)i) * 4)))’, which is of non-class type ‘const int’\n/tmp/abseil/absl/base/internal/spinlock_wait.cc:49:7: error: ‘SpinLockDelay’ was not declared in this scope\n   49 |       SpinLockDelay(w, v, ++loop, scheduling_mode);  // no matching transition\n/tmp/abseil/absl/base/internal/spinlock_wait.cc:50:25: error: request for member ‘to’ in ‘*(trans + ((sizetype)(((long unsigned int)i) * 4)))’, which is of non-class type ‘const int’\n/tmp/abseil/absl/base/internal/spinlock_wait.cc:51:55: error: request for member ‘to’ in ‘*(trans + ((sizetype)(((long unsigned int)i) * 4)))’, which is of non-class type ‘const int’\n/tmp/abseil/absl/base/internal/spinlock_wait.cc:54:20: error: request for member ‘done’ in ‘*(trans + ((sizetype)(((long unsigned int)i) * 4)))’, which is of non-class type ‘const int’",
+    "relevant_files": [
+      "absl/base/internal/spinlock_wait.cc"
+    ],
+    "error_type": "include_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-linker_error-absl_status_internal_status_internal.cc-2d4a4c40",
+    "log": "/tmp/abseil/absl/status/internal/status_internal.cc:52:6: error: declaration of ‘void absl::status_internal::StatusRep::Unref() const’ outside of class is not definition [-fpermissive]",
+    "relevant_files": [
+      "absl/status/internal/status_internal.cc"
+    ],
+    "error_type": "linker_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-include_error-absl_debugging_internal_utf8_for_code_point.cc-d0f98674",
+    "log": "/tmp/abseil/absl/debugging/internal/utf8_for_code_point.cc:35:1: error: ‘Utf8ForCodePoint’ does not name a type",
+    "relevant_files": [
+      "absl/debugging/internal/utf8_for_code_point.cc"
+    ],
+    "error_type": "include_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-include_error-absl_flags_marshalling.cc-df5ff776",
+    "log": "/tmp/abseil/absl/flags/marshalling.cc:210:13: error: ‘ParseFlag’ is not a member of ‘absl’\n/tmp/abseil/absl/flags/marshalling.cc:261:13: error: ‘ParseFlag’ is not a member of ‘absl’; did you mean ‘AbslParseFlag’?\n/tmp/abseil/absl/flags/marshalling.cc:272:16: error: ‘UnparseFlag’ is not a member of ‘absl’; did you mean ‘AbslUnparseFlag’?",
+    "relevant_files": [
+      "absl/flags/marshalling.cc"
+    ],
+    "error_type": "include_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-compiler_error-absl_debugging_internal_utf8_for_code_point.cc-8072064c",
+    "log": "/tmp/abseil/absl/debugging/internal/utf8_for_code_point.cc:35:63: error: ISO C++ forbids declaration of ‘__BOGUS_Utf8ForCodePoint’ with no type [-fpermissive]\n/tmp/abseil/absl/debugging/internal/utf8_for_code_point.cc:35:1: error: no declaration matches ‘int absl::debugging_internal::Utf8ForCodePoint::__BOGUS_Utf8ForCodePoint(uint64_t)’",
+    "relevant_files": [
+      "absl/debugging/internal/utf8_for_code_point.cc"
+    ],
+    "error_type": "compiler_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "abseil_abseil-cpp-issue-57",
+    "log": "ERROR: /usr/home/daniely/abseil-cpp/absl/base/BUILD.bazel:374:1: Linking of rule '//absl/base:low_level_alloc_test' failed (Exit 1)\r\nbazel-out/local_freebsd-fastbuild/bin/absl/base/_objs/low_level_alloc_test/absl/base/internal/low_level_alloc_test.pic.o: In function `std::__1::unordered_map<int, absl::base_internal::(anonymous namespace)::BlockDesc, std::__1::hash<int>, std::__1::equal_to<int>, std::__1::allocator<std::__1::pair<int const, absl::base_internal::(anonymous namespace)::BlockDesc> > >::operator[](int const&)':\r\nabsl/base/internal/low_level_alloc_test.cc:(.text+0x1ff4): undefined reference to `ceilf'\r\nbazel-out/local_freebsd-fastbuild/bin/absl/base/_objs/low_level_alloc_test/absl/base/internal/low_level_alloc_test.pic.o: In function `std::__1::__hash_table<std::__1::__hash_value_type<int, absl::base_internal::(anonymous namespace)::BlockDesc>, std::__1::__unordered_map_hasher<int, std::__1::__hash_value_type<int, absl::base_internal::(anonymous namespace)::BlockDesc>, std::__1::hash<int>, true>, std::__1::__unordered_map_equal<int, std::__1::__hash_value_type<int, absl::base_internal::(anonymous namespace)::BlockDesc>, std::__1::equal_to<int>, true>, std::__1::allocator<std::__1::__hash_value_type<int, absl::base_internal::(anonymous namespace)::BlockDesc> > >::rehash(unsigned long)':\r\nabsl/base/internal/low_level_alloc_test.cc:(.text+0x3aa9): undefined reference to `ceilf'\r\nabsl/base/internal/low_level_alloc_test.cc:(.text+0x3bc6): undefined reference to `ceilf'\r\nclang: error: linker command failed with exit code 1 (use -v to see invocation)",
+    "relevant_files": [
+      "absl/base/config.h",
+      "absl/base/internal/endian.h",
+      "absl/base/internal/raw_logging.cc",
+      "absl/base/internal/sysinfo.cc",
+      "absl/debugging/internal/stacktrace_config.h"
+    ],
+    "error_type": "linker_error",
+    "source": "github",
+    "repo": "abseil/abseil-cpp",
+    "issue_url": "https://github.com/abseil/abseil-cpp/pull/57",
+    "split": "dev"
+  },
+  {
+    "id": "llvm_llvm-project-issue-69852",
+    "log": "[520] % clangtk -v\r\nclang version 18.0.0 (https://github.com/llvm/llvm-project.git 4aae5387a874a55ee491f5dc23ce0506c5cdc678)\r\nTarget: x86_64-unknown-linux-gnu\r\nThread model: posix\r\nInstalledDir: /local/suz-local/opfuzz/bin\r\nFound candidate GCC installation: /usr/lib/gcc/x86_64-linux-gnu/10\r\nFound candidate GCC installation: /usr/lib/gcc/x86_64-linux-gnu/11\r\nFound candidate GCC installation: /usr/lib/gcc/x86_64-linux-gnu/9\r\nSelected GCC installation: /usr/lib/gcc/x86_64-linux-gnu/11\r\nCandidate multilib: .;@m64\r\nSelected multilib: .;@m64\r\n[521] % \r\n[521] % clangtk -O3 small.c\r\nPLEASE submit a bug report to https://github.com/llvm/llvm-project/issues/ and include the crash backtrace, preprocessed source, and associated run script.\r\nStack dump:\r\n0.\tProgram arguments: /local/suz-local/software/local/clang-trunk/bin/clang-18 -cc1 -triple x86_64-unknown-linux-gnu -emit-obj -dumpdir a- -disable-free -clear-ast-before-backend -main-file-name small.c -mrelocation-model pic -pic-level 2 -pic-is-pie -mframe-pointer=none -fmath-errno -ffp-contract=on -fno-rounding-math -mconstructor-aliases -funwind-tables=2 -target-cpu x86-64 -tune-cpu generic -debugger-tuning=gdb -fdebug-compilation-dir=/local/suz-local/software/emitesting/bugs/20231021-clangtk-m64-O3-build-173404/delta -fcoverage-compilation-dir=/local/suz-local/software/emitesting/bugs/20231021-clangtk-m64-O3-build-173404/delta -resource-dir /local/suz-local/software/local/clang-trunk/lib/clang/18 -I /usr/local/include -I /local/suz-local/software/local/include -internal-isystem /local/suz-local/software/local/clang-trunk/lib/clang/18/include -internal-isystem /usr/local/include -internal-isystem /usr/lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/include -internal-externc-isystem /usr/include/x86_64-linux-gnu -internal-externc-isystem /include -internal-externc-isystem /usr/include -O3 -ferror-limit 19 -fgnuc-version=4.2.1 -fcolor-diagnostics -vectorize-loops -vectorize-slp -faddrsig -D__GCC_HAVE_DWARF2_CFI_ASM=1 -o /tmp/small-19bc53.o -x c small.c\r\n1.\t<eof> parser at end of file\r\n2.\tOptimizer\r\n  #0 0x000055a8a61dd9cf llvm::sys::PrintStackTrace(llvm::raw_ostream&, int) (/local/suz-local/software/local/clang-trunk/bin/clang-18+0x3d0e9cf)\r\n  #1 0x000055a8a61daf34 SignalHandler(int) Signals.cpp:0:0\r\n  #2 0x00007feff9376420 __restore_rt (/lib/x86_64-linux-gnu/libpthread.so.0+0x14420)\r\n  #3 0x000055a8a5351180 computeKnownBits(llvm::Value const*, llvm::APInt const&, llvm::KnownBits&, unsigned int, llvm::SimplifyQuery const&) ValueTracking.cpp:0:0\r\n  #4 0x000055a8a535518d computeKnownBits(llvm::Value const*, llvm::KnownBits&, unsigned int, llvm::SimplifyQuery const&) ValueTracking.cpp:0:0\r\n  #5 0x000055a8a5355319 llvm::computeKnownBits(llvm::Value const*, unsigned int, llvm::SimplifyQuery const&) (/local/suz-local/software/local/clang-trunk/bin/clang-18+0x2e86319)\r\n  #6 0x000055a8a5358548 llvm::computeKnownBits(llvm::Value const*, llvm::DataLayout const&, unsigned int, llvm::AssumptionCache*, llvm::Instruction const*, llvm::DominatorTree const*, bool) (/local/suz-local/software/local/clang-trunk/bin/clang-18+0x2e89548)\r\n  #7 0x000055a8a52a1c86 llvm::ScalarEvolution::getConstantMultipleImpl(llvm::SCEV const*) (/local/suz-local/software/local/clang-trunk/bin/clang-18+0x2dd2c86)\r\n  #8 0x000055a8a52a1309 llvm::ScalarEvolution::getConstantMultiple(llvm::SCEV const*) (/local/suz-local/software/local/clang-trunk/bin/clang-18+0x2dd2309)\r\n  #9 0x000055a8a52a1d75 llvm::ScalarEvolution::getConstantMultipleImpl(llvm::SCEV const*) (/local/suz-local/software/local/clang-trunk/bin/clang-18+0x2dd2d75)\r\n #10 0x000055a8a52a1309 llvm::ScalarEvolution::getConstantMultiple(llvm::SCEV const*) (/local/suz-local/software/local/clang-trunk/bin/clang-18+0x2dd2309)\r\n #11 0x000055a8a52a14fb llvm::ScalarEvolution::getMinTrailingZeros(llvm::SCEV const*) (/local/suz-local/software/local/clang-trunk/bin/clang-18+0x2dd24fb)\r\n #12 0x000055a8a52a1ec0 llvm::ScalarEvolution::getConstantMultipleImpl(llvm::SCEV const*) (/local/suz-local/software/local/clang-trunk/bin/clang-18+0x2dd2ec0)\r\n #13 0x000055a8a52a1309 llvm::ScalarEvolution::getConstantMultiple(llvm::SCEV const*) (/local/suz-local/software/local/clang-trunk/bin/clang-18+0x2dd2309)\r\n #14 0x000055a8a52a14fb llvm::ScalarEvolution::getMinTrailingZeros(llvm::SCEV const*) (/local/suz-local/software/local/clang-trunk/bin/clang-18+0x2dd24fb)\r\n #15 0x000055a8a52c50e3 llvm::ScalarEvolution::getRangeRef(llvm::SCEV const*, llvm::ScalarEvolution::RangeSignHint, unsigned int) (/local/suz-local/software/local/clang-trunk/bin/clang-18+0x2df60e3)\r\n #16 0x000055a8a52c81e6 llvm::ScalarEvolution::isKnownNonNegative(llvm::SCEV const*) (/local/suz-local/software/local/clang-trunk/bin/clang-18+0x2df91e6)\r\n #17 0x000055a8a52d431b llvm::ScalarEvolution::getGEPExpr(llvm::GEPOperator*, llvm::SmallVectorImpl<llvm::SCEV const*> const&) (/local/suz-local/software/local/clang-trunk/bin/clang-18+0x2e0531b)\r\n #18 0x000055a8a52d4541 llvm::ScalarEvolution::createNodeForGEP(llvm::GEPOperator*) (/local/suz-local/software/local/clang-trunk/bin/clang-18+0x2e05541)\r\n #19 0x000055a8a52b298c llvm::ScalarEvolution::createSCEV(llvm::Value*) (.part.0) ScalarEvolution.cpp:0:0\r\n #20 0x000055a8a52b35d0 llvm::ScalarEvolution::createSCEVIter(llvm::Value*) (/local/suz-local/software/local/clang-trunk/bin/clang-18+0x2de45d0)\r\n #21 0x000055a8a52d8d94 llvm::ScalarEvolution::computeSCEVAtScope(llvm::SCEV const*, llvm::Loop const*) (/local/suz-local/software/local/clang-trunk/bin/clang-18+0x2e09d94)\r\n #22 0x000055a8a52d928a llvm::ScalarEvolution::getSCEVAtScope(llvm::SCEV const*, llvm::Loop const*) (/local/suz-local/software/local/clang-trunk/bin/clang-18+0x2e0a28a)\r\n #23 0x000055a8a52d8da7 llvm::ScalarEvolution::computeSCEVAtScope(llvm::SCEV const*, llvm::Loop const*) (/local/suz-local/software/local/clang-trunk/bin/clang-18+0x2e09da7)\r\n #24 0x000055a8a52d928a llvm::ScalarEvolution::getSCEVAtScope(llvm::SCEV const*, llvm::Loop const*) (/local/suz-local/software/local/clang-trunk/bin/clang-18+0x2e0a28a)\r\n #25 0x000055a8a52d8849 llvm::ScalarEvolution::computeSCEVAtScope(llvm::SCEV const*, llvm::Loop const*) (/local/suz-local/software/local/clang-trunk/bin/clang-18+0x2e09849)\r\n...\r\nclangtk: error: unable to execute command: Segmentation fault\r\nclangtk: error: clang frontend command failed due to signal (use -v to see invocation)\r\nclang version 18.0.0 (https://github.com/llvm/llvm-project.git 4aae5387a874a55ee491f5dc23ce0506c5cdc678)\r\nTarget: x86_64-unknown-linux-gnu\r\nThread model: posix\r\nInstalledDir: /local/suz-local/opfuzz/bin\r\nclangtk: note: diagnostic msg: \r\n********************\r\n\r\nPLEASE ATTACH THE FOLLOWING FILES TO THE BUG REPORT:\r\nPreprocessed source(s) and associated run script(s) are located at:\r\nclangtk: note: diagnostic msg: /tmp/small-c48d02.c\r\nclangtk: note: diagnostic msg: /tmp/small-c48d02.sh\r\nclangtk: note: diagnostic msg: \r\n\r\n********************\r\n[522] % \r\n[522] % cat small.c\r\nint a[1], b, c, d, e;\r\nint main() {\r\n  short g = d = 1;\r\n  for (; d; d--)\r\n    g++;\r\n  while (!g)\r\n    for (d = 0; d < 5; d++)\r\n      for (c = 0; c < 10; c++)\r\n        for (e = 0; e < 5; e++) {\r\n          b = a[b];\r\n          b = a[b & 5];\r\n          b = a[b];\r\n          b = a[b];\r\n          b = a[b];\r\n          b = a[b & 5];\r\n          b = a[b];\r\n          b = a[b];\r\n          b = a[b];\r\n          b = a[b & 5];\r\n          b = a[b];\r\n          b = a[b];\r\n          b = a[b];\r\n          b = a[b & 5];\r\n          b = a[b];\r\n          b = a[b];\r\n          b = a[b];\r\n          b = a[b & 5];\r\n          b = a[b];\r\n          b = a[b];\r\n          b = a[b];\r\n          b = a[b & 5];\r\n          b = a[b];\r\n          b = a[b];\r\n          b = a[b];\r\n          b = a[b & 5];\r\n        }\r\n  return 0;\r\n}",
+    "relevant_files": [
+      "llvm/include/llvm/Analysis/ScalarEvolution.h",
+      "llvm/lib/Analysis/ScalarEvolution.cpp"
+    ],
+    "error_type": "segfault",
+    "source": "github",
+    "repo": "llvm/llvm-project",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/69852",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-compiler_error-absl_random_internal_gaussian_distribution_gentables.cc-0b7a5804",
+    "log": "/tmp/abseil/absl/random/internal/gaussian_distribution_gentables.cc:85:18: error: ‘__BOGUS_ABSL_ARRAYSIZE’ was not declared in this scope; did you mean ‘ABSL_ARRAYSIZE’?",
+    "relevant_files": [
+      "absl/random/internal/gaussian_distribution_gentables.cc"
+    ],
+    "error_type": "compiler_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-compiler_error-absl_strings_internal_cord_rep_btree_navigator.cc-86bff06a",
+    "log": "/tmp/abseil/absl/strings/internal/cord_rep_btree_navigator.cc:96:18: error: ‘class absl::cord_internal::CordRepBtree’ has no member named ‘__BOGUS_Edge’",
+    "relevant_files": [
+      "absl/strings/internal/cord_rep_btree_navigator.cc"
+    ],
+    "error_type": "compiler_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-include_error-absl_random_internal_chi_square.cc-7012d289",
+    "log": "/tmp/abseil/absl/random/internal/chi_square.cc:137:9: error: ‘ChiSquarePValue’ was not declared in this scope; did you mean ‘ChiSquareValue’?",
+    "relevant_files": [
+      "absl/random/internal/chi_square.cc"
+    ],
+    "error_type": "include_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-include_error-absl_profiling_internal_exponential_biased.cc-3ff93b60",
+    "log": "/tmp/abseil/absl/profiling/internal/exponential_biased.cc:41:9: error: ‘ExponentialBiased’ has not been declared\n/tmp/abseil/absl/profiling/internal/exponential_biased.cc:42:27: error: ‘initialized_’ was not declared in this scope\n/tmp/abseil/absl/profiling/internal/exponential_biased.cc:43:5: error: ‘Initialize’ was not declared in this scope\n/tmp/abseil/absl/profiling/internal/exponential_biased.cc:46:29: error: ‘rng_’ was not declared in this scope; did you mean ‘rng’?\n/tmp/abseil/absl/profiling/internal/exponential_biased.cc:46:18: error: ‘NextRandom’ was not declared in this scope\n/tmp/abseil/absl/profiling/internal/exponential_biased.cc:54:44: error: ‘kPrngNumBits’ was not declared in this scope\n/tmp/abseil/absl/profiling/internal/exponential_biased.cc:56:21: error: ‘bias_’ was not declared in this scope\n/tmp/abseil/absl/profiling/internal/exponential_biased.cc:72:9: error: ‘ExponentialBiased’ has not been declared\n/tmp/abseil/absl/profiling/internal/exponential_biased.cc:76:6: error: ‘ExponentialBiased’ has not been declared\n/tmp/abseil/absl/profiling/internal/exponential_biased.cc:82:43: error: invalid use of ‘this’ in non-member function\n/tmp/abseil/absl/profiling/internal/exponential_biased.cc:85:9: error: ‘NextRandom’ was not declared in this scope\n/tmp/abseil/absl/profiling/internal/exponential_biased.cc:87:3: error: ‘rng_’ was not declared in this scope\n/tmp/abseil/absl/profiling/internal/exponential_biased.cc:88:3: error: ‘initialized_’ was not declared in this scope; did you mean ‘Initialize’?",
+    "relevant_files": [
+      "absl/profiling/internal/exponential_biased.cc"
+    ],
+    "error_type": "include_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-compiler_error-absl_base_internal_spinlock_wait.cc-abb90c39",
+    "log": "/tmp/abseil/absl/base/internal/spinlock_wait.cc:44:21: error: ‘struct std::atomic<unsigned int>’ has no member named ‘__BOGUS_load’",
+    "relevant_files": [
+      "absl/base/internal/spinlock_wait.cc"
+    ],
+    "error_type": "compiler_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-include_error-absl_log_log_sink.cc-b464c0b9",
+    "log": "/tmp/abseil/absl/log/log_sink.cc:21:6: error: ‘LogSink’ has not been declared\n/tmp/abseil/absl/log/log_sink.cc:21:29: error: non-member function ‘void absl::KeyFunction()’ cannot have cv-qualifier",
+    "relevant_files": [
+      "absl/log/log_sink.cc"
+    ],
+    "error_type": "include_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "opencv_opencv-issue-26936",
+    "log": "➜  cross-build gdb ./opencv_test_core \nGNU gdb (Bianbu 15.0.50.20240403-0ubuntu1bb2) 15.0.50.20240403-git\nCopyright (C) 2024 Free Software Foundation, Inc.\nLicense GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>\nThis is free software: you are free to change and redistribute it.\nThere is NO WARRANTY, to the extent permitted by law.\nType \"show copying\" and \"show warranty\" for details.\nThis GDB was configured as \"riscv64-linux-gnu\".\nType \"show configuration\" for configuration details.\nFor bug reporting instructions, please see:\n<https://www.gnu.org/software/gdb/bugs/>.\nFind the GDB manual and other documentation resources online at:\n    <http://www.gnu.org/software/gdb/documentation/>.\n\nFor help, type \"help\".\nType \"apropos word\" to search for commands related to \"word\"...\nReading symbols from ./opencv_test_core...\n(gdb) run --gtest_filter=\"*Scale*\"\nStarting program: /home/opencv/cross-build/opencv_test_core --gtest_filter=\"*Scale*\"\n[Thread debugging using libthread_db enabled]\nUsing host libthread_db library \"/lib/riscv64-linux-gnu/libthread_db.so.1\".\nCTEST_FULL_OUTPUT\nOpenCV version: 4.12.0-dev\nOpenCV VCS version: 4.11.0-146-g680fd4d975-dirty\nBuild type: Release\nCompiler: /mnt/Projects/spacemit/spacemit-toolchain-linux-glibc-x86_64-v1.0.4/bin/riscv64-unknown-linux-gnu-g++  (ver 14.2.1)\nAlgorithm hint: ALGO_HINT_ACCURATE\nHAL: YES (HAL RVV (ver 0.0.1))\nParallel framework: pthreads (nthreads=8)\nCPU features: RVV\nTEST: Skip tests with tags: 'mem_6gb', 'verylong'\nNote: Google Test filter = *Scale*\n[==========] Running 4 tests from 4 test cases.\n[----------] Global test environment set-up.\n[----------] 1 test from Core_ConvertScale/ElemWiseTest\n[ RUN      ] Core_ConvertScale/ElemWiseTest.accuracy/0, where GetParam() = 16-byte object <F0-99 5F-00 00-00 00-00 70-9B 5F-00 00-00 00-00>\n\nProgram received signal SIGSEGV, Segmentation fault.\n0x0000003ff74994ea in cv::cpu_baseline::cvtScale8s64f(unsigned char const*, unsigned long, unsigned char const*, unsigned long, unsigned char*, unsigned long, cv::Size_<int>, void*) () from /home/opencv/cross-build/libopencv_core.so.412\n(gdb) bt\n#0  0x0000003ff74994ea in cv::cpu_baseline::cvtScale8s64f(unsigned char const*, unsigned long, unsigned char const*, unsigned long, unsigned char*, unsigned long, cv::Size_<int>, void*) () from /home/opencv/cross-build/libopencv_core.so.412\n#1  0x0000003ff74942f4 in cv::Mat::convertTo(cv::_OutputArray const&, int, double, double) const () from /home/opencv/cross-build/libopencv_core.so.412\n#2  0x000000000006bc84 in opencv_test::(anonymous namespace)::ConvertScaleOp::op(std::vector<cv::Mat, std::allocator<cv::Mat> > const&, cv::Mat&, cv::Mat const&) ()\n#3  0x0000000000089b02 in opencv_test::(anonymous namespace)::ElemWiseTest_accuracy_Test::Body() ()\n#4  0x0000000000089f46 in opencv_test::(anonymous namespace)::ElemWiseTest_accuracy_Test::TestBody() ()\n#5  0x000000000043ab4c in void testing::internal::HandleExceptionsInMethodIfSupported<testing::Test, void>(testing::Test*, void (testing::Test::*)(), char const*) ()\n#6  0x000000000043ad24 in testing::Test::Run() ()\n#7  0x000000000043af62 in testing::TestInfo::Run() ()\n#8  0x000000000043afe4 in testing::TestCase::Run() ()\n#9  0x000000000043b5fe in testing::internal::UnitTestImpl::RunAllTests() ()\n#10 0x000000000043b72a in testing::UnitTest::Run() ()\n#11 0x000000000004c5a8 in main ()",
+    "relevant_files": [
+      "modules/core/include/opencv2/core/hal/intrin_rvv_scalable.hpp",
+      "modules/core/src/convert.simd.hpp",
+      "modules/core/src/convert_scale.simd.hpp",
+      "modules/core/test/test_intrin_utils.hpp"
+    ],
+    "error_type": "segfault",
+    "source": "github",
+    "repo": "opencv/opencv",
+    "issue_url": "https://github.com/opencv/opencv/issues/26936",
+    "split": "dev"
+  },
+  {
+    "id": "llvm_llvm-project-issue-118225",
+    "log": "PLEASE submit a bug report to https://github.com/llvm/llvm-project/issues/ and include the crash backtrace.\nStack dump:\n0.      Program arguments: /data/tmp/v1201/llvm-project/build/bin/mlir-opt --affine-loop-coalescing test.mlir\n #0 0x00005596d2fb2e6f llvm::sys::PrintStackTrace(llvm::raw_ostream&, int) (/data/tmp/v1201/llvm-project/build/bin/mlir-opt+0x150ae6f)\n #1 0x00005596d2fb0624 SignalHandler(int) Signals.cpp:0:0\n #2 0x00007fdad986e420 __restore_rt (/lib/x86_64-linux-gnu/libpthread.so.0+0x14420)\n #3 0x00005596d43b3bdc mlir::memref::__mlir_ods_local_type_constraint_MemRefOps9(mlir::Operation*, mlir::Type, llvm::StringRef, unsigned int) (.constprop.0) MemRefOps.cpp:0:0\n #4 0x00005596d43b3e39 mlir::memref::DimOp::verifyInvariantsImpl() (/data/tmp/v1201/llvm-project/build/bin/mlir-opt+0x290be39)\n #5 0x00005596d4347685 mlir::Op<mlir::memref::DimOp, mlir::OpTrait::ZeroRegions, mlir::OpTrait::OneResult, mlir::OpTrait::OneTypedResult<mlir::IndexType>::Impl, mlir::OpTrait::ZeroSuccessors, mlir::OpTrait::NOperands<2u>::Impl, mlir::OpTrait::OpInvariants, mlir::OpAsmOpInterface::Trait, mlir::OpTrait::MemRefsNormalizable, mlir::ConditionallySpeculatable::Trait, mlir::MemoryEffectOpInterface::Trait, mlir::ShapedDimOpInterface::Trait, mlir::InferTypeOpInterface::Trait>::verifyInvariants(mlir::Operation*) (/data/tmp/v1201/llvm-project/build/bin/mlir-opt+0x289f685)\n #6 0x00005596d435d79b mlir::RegisteredOperationName::Model<mlir::memref::DimOp>::verifyInvariants(mlir::Operation*) (/data/tmp/v1201/llvm-project/build/bin/mlir-opt+0x28b579b)\n #7 0x00005596d604be92 (anonymous namespace)::OperationVerifier::verifyOnEntrance(mlir::Operation&) (.isra.0) Verifier.cpp:0:0\n #8 0x00005596d604c975 (anonymous namespace)::OperationVerifier::verifyOperation(mlir::Operation&) Verifier.cpp:0:0\n #9 0x00005596d604e46a mlir::verify(mlir::Operation*, bool) (/data/tmp/v1201/llvm-project/build/bin/mlir-opt+0x45a646a)\n#10 0x00005596d5e2d203 mlir::detail::OpToOpPassAdaptor::run(mlir::Pass*, mlir::Operation*, mlir::AnalysisManager, bool, unsigned int) (/data/tmp/v1201/llvm-project/build/bin/mlir-opt+0x4385203)\n#11 0x00005596d5e2d451 mlir::detail::OpToOpPassAdaptor::runPipeline(mlir::OpPassManager&, mlir::Operation*, mlir::AnalysisManager, bool, unsigned int, mlir::PassInstrumentor*, mlir::PassInstrumentation::PipelineParentInfo const*) (/data/tmp/v1201/llvm-project/build/bin/mlir-opt+0x4385451)\n#12 0x00005596d5e2bf16 mlir::detail::OpToOpPassAdaptor::runOnOperationAsyncImpl(bool) (/data/tmp/v1201/llvm-project/build/bin/mlir-opt+0x4383f16)\n#13 0x00005596d5e2c959 mlir::detail::OpToOpPassAdaptor::run(mlir::Pass*, mlir::Operation*, mlir::AnalysisManager, bool, unsigned int) (/data/tmp/v1201/llvm-project/build/bin/mlir-opt+0x4384959)\n#14 0x00005596d5e2d451 mlir::detail::OpToOpPassAdaptor::runPipeline(mlir::OpPassManager&, mlir::Operation*, mlir::AnalysisManager, bool, unsigned int, mlir::PassInstrumentor*, mlir::PassInstrumentation::PipelineParentInfo const*) (/data/tmp/v1201/llvm-project/build/bin/mlir-opt+0x4385451)\n#15 0x00005596d5e2e4f6 mlir::PassManager::run(mlir::Operation*) (/data/tmp/v1201/llvm-project/build/bin/mlir-opt+0x43864f6)\n#16 0x00005596d5e1e973 performActions(llvm::raw_ostream&, std::shared_ptr<llvm::SourceMgr> const&, mlir::MLIRContext*, mlir::MlirOptMainConfig const&) MlirOptMain.cpp:0:0\n#17 0x00005596d5e1f6af processBuffer(llvm::raw_ostream&, std::unique_ptr<llvm::MemoryBuffer, std::default_delete<llvm::MemoryBuffer>>, mlir::MlirOptMainConfig const&, mlir::DialectRegistry&, llvm::ThreadPoolInterface*) MlirOptMain.cpp:0:0\n#18 0x00005596d5e1f7f4 llvm::LogicalResult llvm::function_ref<llvm::LogicalResult (std::unique_ptr<llvm::MemoryBuffer, std::default_delete<llvm::MemoryBuffer>>, llvm::raw_ostream&)>::callback_fn<mlir::MlirOptMain(llvm::raw_ostream&, std::unique_ptr<llvm::MemoryBuffer, std::default_delete<llvm::MemoryBuffer>>, mlir::DialectRegistry&, mlir::MlirOptMainConfig const&)::'lambda'(std::unique_ptr<llvm::MemoryBuffer, std::default_delete<llvm::MemoryBuffer>>, llvm::raw_ostream&)>(long, std::unique_ptr<llvm::MemoryBuffer, std::default_delete<llvm::MemoryBuffer>>, llvm::raw_ostream&) MlirOptMain.cpp:0:0\n#19 0x00005596d5f21ae5 mlir::splitAndProcessBuffer(std::unique_ptr<llvm::MemoryBuffer, std::default_delete<llvm::MemoryBuffer>>, llvm::function_ref<llvm::LogicalResult (std::unique_ptr<llvm::MemoryBuffer, std::default_delete<llvm::MemoryBuffer>>, llvm::raw_ostream&)>, llvm::raw_ostream&, llvm::StringRef, llvm::StringRef) (/data/tmp/v1201/llvm-project/build/bin/mlir-opt+0x4479ae5)\n#20 0x00005596d5e17de9 mlir::MlirOptMain(llvm::raw_ostream&, std::unique_ptr<llvm::MemoryBuffer, std::default_delete<llvm::MemoryBuffer>>, mlir::DialectRegistry&, mlir::MlirOptMainConfig const&) (/data/tmp/v1201/llvm-project/build/bin/mlir-opt+0x436fde9)\n#21 0x00005596d5e1f961 mlir::MlirOptMain(int, char**, llvm::StringRef, llvm::StringRef, mlir::DialectRegistry&) (/data/tmp/v1201/llvm-project/build/bin/mlir-opt+0x4377961)\n#22 0x00005596d5e1fe26 mlir::MlirOptMain(int, char**, llvm::StringRef, mlir::DialectRegistry&) (/data/tmp/v1201/llvm-project/build/bin/mlir-opt+0x4377e26)\n#23 0x00005596d2eeba7b main (/data/tmp/v1201/llvm-project/build/bin/mlir-opt+0x1443a7b)\n#24 0x00007fdad931c083 __libc_start_main (/lib/x86_64-linux-gnu/libc.so.6+0x24083)\n#25 0x00005596d2f8735e _start (/data/tmp/v1201/llvm-project/build/bin/mlir-opt+0x14df35e)\nSegmentation fault (core dumped)",
+    "relevant_files": [
+      "mlir/include/mlir/IR/CFGValue.h",
+      "mlir/include/mlir/IR/SSAValue.h",
+      "mlir/include/mlir/IR/StandardOps.h",
+      "mlir/include/mlir/IR/UseDefLists.h",
+      "mlir/lib/IR/StandardOps.cpp"
+    ],
+    "error_type": "segfault",
+    "source": "github",
+    "repo": "llvm/llvm-project",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/118225",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-compiler_error-absl_flags_commandlineflag.cc-ae27ba7c",
+    "log": "/tmp/abseil/absl/flags/commandlineflag.cc:29:6: error: no declaration matches ‘bool absl::CommandLineFlag::__BOGUS_ParseFrom(std::string_view, std::string*)’\n   29 | bool CommandLineFlag::__BOGUS_ParseFrom(absl::string_view value, std::string* error) {",
+    "relevant_files": [
+      "absl/flags/commandlineflag.cc"
+    ],
+    "error_type": "compiler_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-linker_error-absl_crc_internal_crc_cord_state.cc-7ffe8216",
+    "log": "/tmp/abseil/absl/crc/internal/crc_cord_state.cc:27:30: error: declaration of ‘static absl::crc_internal::CrcCordState::RefcountedRep* absl::crc_internal::CrcCordState::RefSharedEmptyRep()’ outside of class is not definition [-fpermissive]",
+    "relevant_files": [
+      "absl/crc/internal/crc_cord_state.cc"
+    ],
+    "error_type": "linker_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-include_error-absl_log_internal_log_message.cc-ac1c0e78",
+    "log": "/tmp/abseil/absl/log/internal/log_message.cc:152:41: error: qualified name does not name a class before ‘{’ token\n/tmp/abseil/absl/log/internal/log_message.cc:205:13: error: invalid use of incomplete type ‘class absl::log_internal::LogMessage’\n/tmp/abseil/absl/log/internal/log_message.cc:221:18: error: ‘absl::log_internal::LogMessage::LogMessageData’ has not been declared\n/tmp/abseil/absl/log/internal/log_message.cc:222:45: error: ‘entry’ was not declared in this scope\n/tmp/abseil/absl/log/internal/log_message.cc:223:25: error: ‘encoded_remaining’ was not declared in this scope\n/tmp/abseil/absl/log/internal/log_message.cc:234:18: error: ‘absl::log_internal::LogMessage::LogMessageData’ has not been declared\n/tmp/abseil/absl/log/internal/log_message.cc:239:7: error: ‘encoded_buf’ was not declared in this scope; did you mean ‘encoded_data’?\n/tmp/abseil/absl/log/internal/log_message.cc:240:27: error: ‘encoded_remaining’ was not declared in this scope\n/tmp/abseil/absl/log/internal/log_message.cc:243:37: error: ‘string_buf’ was not declared in this scope\n/tmp/abseil/absl/log/internal/log_message.cc:249:3: error: ‘entry’ was not declared in this scope\n/tmp/abseil/absl/log/internal/log_message.cc:278:50: error: invalid use of incomplete type ‘class absl::log_internal::LogMessage’\n/tmp/abseil/absl/log/internal/log_message.cc:281:50: error: invalid use of incomplete type ‘class absl::log_internal::LogMessage’\n/tmp/abseil/absl/log/internal/log_message.cc:294:65: error: ‘InfoTag’ has not been declared\n/tmp/abseil/absl/log/internal/log_message.cc:294:72: error: invalid use of incomplete type ‘class absl::log_internal::LogMessage’\n/tmp/abseil/absl/log/internal/log_message.cc:296:65: error: ‘WarningTag’ has not been declared",
+    "relevant_files": [
+      "absl/log/internal/log_message.cc"
+    ],
+    "error_type": "include_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-include_error-absl_strings_internal_cordz_sample_token.cc-3970e294",
+    "log": "/tmp/abseil/absl/strings/internal/cordz_sample_token.cc:25:1: error: ‘CordzSampleToken’ does not name a type\n/tmp/abseil/absl/strings/internal/cordz_sample_token.cc:32:1: error: ‘CordzSampleToken’ does not name a type\n/tmp/abseil/absl/strings/internal/cordz_sample_token.cc:38:23: error: ‘CordzSampleToken’ does not name a type\n/tmp/abseil/absl/strings/internal/cordz_sample_token.cc:38:49: error: expected unqualified-id before ‘&’ token\n/tmp/abseil/absl/strings/internal/cordz_sample_token.cc:38:49: error: expected ‘)’ before ‘&’ token\n/tmp/abseil/absl/strings/internal/cordz_sample_token.cc:38:51: error: expected initializer before ‘lhs’\n/tmp/abseil/absl/strings/internal/cordz_sample_token.cc:44:23: error: ‘CordzSampleToken’ does not name a type\n/tmp/abseil/absl/strings/internal/cordz_sample_token.cc:44:49: error: expected unqualified-id before ‘&’ token\n/tmp/abseil/absl/strings/internal/cordz_sample_token.cc:44:49: error: expected ‘)’ before ‘&’ token\n/tmp/abseil/absl/strings/internal/cordz_sample_token.cc:44:51: error: expected initializer before ‘lhs’\n/tmp/abseil/absl/strings/internal/cordz_sample_token.cc:49:1: error: ‘CordzSampleToken’ does not name a type\n/tmp/abseil/absl/strings/internal/cordz_sample_token.cc:54:1: error: ‘CordzSampleToken’ does not name a type\n/tmp/abseil/absl/strings/internal/cordz_sample_token.cc:59:1: error: ‘CordzSampleToken’ does not name a type",
+    "relevant_files": [
+      "absl/strings/internal/cordz_sample_token.cc"
+    ],
+    "error_type": "include_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "abseil_abseil-cpp-issue-817",
+    "log": "[ 74%] Linking CXX shared library libabsl_flags_internal.so\r\ncd /home/akien/Projects/mageia/Sandbox/_rpm/abseil-cpp/build/absl/flags && /usr/bin/cmake -E cmake_link_script CMakeFiles/flags_internal.dir/link.txt --verbose=1\r\n/usr/bin/c++ -fPIC -Wl,--no-undefined -shared -Wl,-soname,libabsl_flags_internal.so -o libabsl_flags_internal.so CMakeFiles/flags_internal.dir/internal/flag.cc.o  -Wl,-rpath,/home/akien/Projects/mageia/Sandbox/_rpm/abseil-cpp/build/absl/flags:/home/akien/Projects/mageia/Sandbox/_rpm/abseil-cpp/build/absl/synchronization:/home/akien/Projects/mageia/Sandbox/_rpm/abseil-cpp/build/absl/debugging:/home/akien/Projects/mageia/Sandbox/_rpm/abseil-cpp/build/absl/base:/home/akien/Projects/mageia/Sandbox/_rpm/abseil-cpp/build/absl/time:/home/akien/Projects/mageia/Sandbox/_rpm/abseil-cpp/build/absl/strings:/home/akien/Projects/mageia/Sandbox/_rpm/abseil-cpp/build/absl/numeric: libabsl_flags_commandlineflag_internal.so libabsl_flags_config.so libabsl_flags_marshalling.so libabsl_flags_program_name.so ../synchronization/libabsl_synchronization.so ../synchronization/libabsl_graphcycles_internal.so ../debugging/libabsl_stacktrace.so ../debugging/libabsl_symbolize.so ../base/libabsl_malloc_internal.so ../debugging/libabsl_debugging_internal.so ../debugging/libabsl_demangle_internal.so ../time/libabsl_time.so ../time/libabsl_civil_time.so ../time/libabsl_time_zone.so ../strings/libabsl_str_format_internal.so ../strings/libabsl_strings.so ../base/libabsl_base.so ../base/libabsl_spinlock_wait.so -lpthread ../strings/libabsl_strings_internal.so ../numeric/libabsl_int128.so ../base/libabsl_throw_delegate.so ../base/libabsl_raw_logging_internal.so ../base/libabsl_log_severity.so \r\n/usr/bin/ld: CMakeFiles/flags_internal.dir/internal/flag.cc.o:(.data.rel.ro._ZTVN4absl14flags_internal8FlagImplE[_ZTVN4absl14flags_internal8FlagImplE]+0x28): undefined reference to `absl::CommandLineFlag::IsRetired() const'\r\n/usr/bin/ld: CMakeFiles/flags_internal.dir/internal/flag.cc.o:(.data.rel.ro._ZTIN4absl14flags_internal8FlagImplE[_ZTIN4absl14flags_internal8FlagImplE]+0x10): undefined reference to `typeinfo for absl::CommandLineFlag'\r\ncollect2: error: ld returned 1 exit status",
+    "relevant_files": [
+      "absl/base/attributes.h",
+      "absl/base/internal/throw_delegate.cc",
+      "absl/strings/internal/str_format/bind.h"
+    ],
+    "error_type": "linker_error",
+    "source": "github",
+    "repo": "abseil/abseil-cpp",
+    "issue_url": "https://github.com/abseil/abseil-cpp/issues/817",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-compiler_error-absl_strings_internal_ostringstream.cc-89eb7bc1",
+    "log": "/tmp/abseil/absl/strings/internal/ostringstream.cc:30:11: error: ‘std::string’ {aka ‘class std::__cxx11::basic_string<char>’} has no member named ‘__BOGUS_push_back’",
+    "relevant_files": [
+      "absl/strings/internal/ostringstream.cc"
+    ],
+    "error_type": "compiler_error",
+    "source": "synthetic",
+    "split": "dev"
+  },
+  {
+    "id": "synthetic-compiler_error-absl_flags_usage.cc-3adc2d5c",
+    "log": "/tmp/abseil/absl/flags/usage.cc:47:10: error: ‘__BOGUS_exit’ is not a member of ‘std’",
+    "relevant_files": [
+      "absl/flags/usage.cc"
+    ],
+    "error_type": "compiler_error",
+    "source": "synthetic",
+    "split": "dev"
+  }
+]

@@ -2,8 +2,10 @@
 Hybrid Retriever — fuses dense (ChromaDB) and sparse (BM25) search.
 
 Score fusion: final = 0.5 * dense_score + 0.5 * bm25_score
-Optional file-path boost: results matching extracted source paths get +0.5.
-Optional file-path dedup: keeps highest-scoring result per unique file.
+Direct file-path injection: when source paths are extracted from the log,
+chunks from those files are fetched directly via ChromaDB metadata filter
+and injected into the candidate pool with a high fixed score.
+File-path dedup: keeps highest-scoring result per unique file.
 
 See docs/2_system_architecture.md §7 for spec.
 """
@@ -18,7 +20,7 @@ DENSE_WEIGHT = 0.5
 SPARSE_WEIGHT = 0.5
 DEFAULT_CANDIDATES = 20   # fetch this many from each index before fusion
 DEFAULT_TOP_K = 5
-SOURCE_PATH_BOOST = 0.5    # score bonus for results matching extracted source paths
+SOURCE_PATH_SCORE = 0.95   # fixed score for directly-fetched source path chunks
 
 
 @dataclass
@@ -61,6 +63,12 @@ class HybridRetriever:
         normalises their scores to [0, 1], and fuses them with weights
         ``0.5 * dense + 0.5 * bm25``.
 
+        When ``source_paths`` are provided, chunks from those files are
+        fetched directly from ChromaDB via metadata filtering and
+        injected into the candidate pool with a high fixed score
+        (0.95).  This guarantees that when the error log mentions a
+        file path, that file always appears in the results.
+
         Falls back to a single index if the other is unavailable.
 
         Args:
@@ -68,8 +76,8 @@ class HybridRetriever:
             log_text: Raw query text for BM25 (error_message + identifiers).
             top_k: Number of results to return.
             source_paths: Optional list of normalized source file paths
-                extracted from the error log.  Results whose ``file_path``
-                matches any of these get a score boost.
+                extracted from the error log.  Chunks from these files
+                are fetched directly and injected into the candidate pool.
             deduplicate_files: If True, collapse results so that each
                 unique ``file_path`` appears at most once (keeping the
                 highest-scoring function per file).
@@ -95,9 +103,12 @@ class HybridRetriever:
         # --- fuse ----------------------------------------------------------
         fused = self._fuse(dense_results, bm25_results)
 
-        # --- file-path boost -----------------------------------------------
+        # --- direct source-path injection ----------------------------------
         if source_paths:
-            fused = self._apply_source_path_boost(fused, source_paths)
+            injected = self._fetch_source_path_chunks(
+                log_embedding, source_paths
+            )
+            fused = self._inject_source_chunks(fused, injected)
 
         # Sort descending by fused score, assign ranks.
         fused.sort(key=lambda r: r.score, reverse=True)
@@ -190,51 +201,86 @@ class HybridRetriever:
 
         return results
 
-    def _apply_source_path_boost(
+    def _fetch_source_path_chunks(
         self,
-        results: List[RetrievalResult],
+        log_embedding,
         source_paths: List[str],
     ) -> List[RetrievalResult]:
-        """Boost scores of results whose file_path matches an extracted source path.
+        """Fetch chunks directly from ChromaDB for specific file paths.
 
-        Matching is done by checking if the result's file_path ends with
-        any of the source_paths (or vice versa), or if they share the same
-        basename when no relative-path match is possible.
+        Uses ChromaDB's metadata ``where`` filter to find chunks whose
+        ``file_path`` matches one of the extracted source paths.  These
+        are given a high fixed score so they rank above hybrid results.
 
         Args:
-            results: Fused results (not yet sorted).
-            source_paths: Normalized paths from extract_source_paths().
+            log_embedding: 768-dim query vector (used by ChromaDB but
+                the ``where`` filter controls which chunks are returned).
+            source_paths: Normalized file paths extracted from the log.
 
         Returns:
-            Same results list with boosted scores.
+            List of RetrievalResult with score = SOURCE_PATH_SCORE.
         """
-        if not source_paths:
-            return results
+        try:
+            if len(source_paths) == 1:
+                where_filter = {"file_path": {"$eq": source_paths[0]}}
+            else:
+                where_filter = {"file_path": {"$in": source_paths}}
 
-        # Build a set of basenames for fallback matching
-        source_basenames = {p.rsplit('/', 1)[-1] for p in source_paths}
+            raw = self.vector_index.query(
+                log_embedding,
+                top_k=10,
+                where=where_filter,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Source path chunk fetch failed: %s", exc
+            )
+            return []
 
-        for r in results:
-            # Normalize to forward slashes for comparison
-            fp = r.file_path.replace('\\', '/')
-
-            matched = False
-            for sp in source_paths:
-                # Check if one is a suffix of the other
-                if fp.endswith(sp) or sp.endswith(fp):
-                    matched = True
-                    break
-
-            if not matched:
-                # Fallback: basename match
-                fp_basename = fp.rsplit('/', 1)[-1]
-                if fp_basename in source_basenames:
-                    matched = True
-
-            if matched:
-                r.score = min(r.score + SOURCE_PATH_BOOST, 1.0)
-
+        results: List[RetrievalResult] = []
+        for r in raw:
+            results.append(RetrievalResult(
+                rank=0,
+                chunk_id=r["chunk_id"],
+                file_path=r["file_path"],
+                function_name=r["function_name"],
+                start_line=r["start_line"],
+                score=SOURCE_PATH_SCORE,
+                dense_score=SOURCE_PATH_SCORE,
+                bm25_score=0.0,
+            ))
         return results
+
+    def _inject_source_chunks(
+        self,
+        fused: List[RetrievalResult],
+        injected: List[RetrievalResult],
+    ) -> List[RetrievalResult]:
+        """Inject directly-fetched source path chunks into the fused pool.
+
+        If a chunk already exists in the fused pool, its score is updated
+        to the maximum of the existing score and the injected score.
+        Otherwise, the chunk is added to the pool.
+
+        Args:
+            fused: Existing fused results from hybrid search.
+            injected: Chunks from _fetch_source_path_chunks().
+
+        Returns:
+            Combined result list.
+        """
+        existing_ids = {r.chunk_id: r for r in fused}
+
+        for inj in injected:
+            if inj.chunk_id in existing_ids:
+                # Upgrade score if injection score is higher
+                existing = existing_ids[inj.chunk_id]
+                if inj.score > existing.score:
+                    existing.score = inj.score
+            else:
+                fused.append(inj)
+
+        return fused
 
     def _deduplicate_files(
         self, results: List[RetrievalResult]

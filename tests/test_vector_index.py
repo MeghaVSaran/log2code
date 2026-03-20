@@ -158,3 +158,32 @@ class TestPersistence:
 
         results = idx2.query(embeddings[0].tolist(), top_k=1)
         assert results[0]["chunk_id"] == chunks[0].chunk_id
+
+
+class TestWhereFilter:
+    """Test the optional ``where`` parameter for metadata filtering."""
+
+    def test_where_filters_by_file_path(self, tmp_path):
+        """Querying with where={file_path: {$eq: X}} returns only chunks from X."""
+        idx = VectorIndex(tmp_path / "chroma")
+        chunks, embeddings = _make_chunks_and_embeddings(10)
+        idx.build(chunks, embeddings)
+
+        target_file = chunks[3].file_path  # "file_3.cpp"
+        results = idx.query(
+            embeddings[0].tolist(),
+            top_k=10,
+            where={"file_path": {"$eq": target_file}},
+        )
+        # All returned results should be from the target file
+        for r in results:
+            assert r["file_path"] == target_file
+
+    def test_where_none_returns_all(self, tmp_path):
+        """Querying without where returns results from any file."""
+        idx = VectorIndex(tmp_path / "chroma")
+        chunks, embeddings = _make_chunks_and_embeddings(5)
+        idx.build(chunks, embeddings)
+
+        results = idx.query(embeddings[0].tolist(), top_k=5, where=None)
+        assert len(results) == 5

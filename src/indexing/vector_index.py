@@ -107,13 +107,18 @@ class VectorIndex:
         )
 
     def query(
-        self, log_embedding: List[float], top_k: int = 20
+        self,
+        log_embedding: List[float],
+        top_k: int = 20,
+        where: Optional[Dict] = None,
     ) -> List[Dict]:
         """Query index for nearest neighbours.
 
         Args:
             log_embedding: 768-dim query vector.
             top_k: Number of results to return.
+            where: Optional ChromaDB ``where`` filter dict for metadata
+                filtering, e.g. ``{"file_path": {"$in": ["a.cpp", "b.cpp"]}}``.
 
         Returns:
             List of dicts, each containing:
@@ -129,11 +134,15 @@ class VectorIndex:
         if isinstance(log_embedding, np.ndarray):
             log_embedding = log_embedding.tolist()
 
-        results = self._collection.query(
-            query_embeddings=[log_embedding],
-            n_results=top_k,
-            include=["metadatas", "distances"],
-        )
+        query_kwargs = {
+            "query_embeddings": [log_embedding],
+            "n_results": top_k,
+            "include": ["metadatas", "distances"],
+        }
+        if where is not None:
+            query_kwargs["where"] = where
+
+        results = self._collection.query(**query_kwargs)
 
         # Unpack ChromaDB's nested list structure.
         ids = results["ids"][0]

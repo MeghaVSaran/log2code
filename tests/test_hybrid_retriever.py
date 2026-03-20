@@ -11,6 +11,7 @@ from src.retrieval.hybrid_retriever import (
     RetrievalResult,
     DENSE_WEIGHT,
     SPARSE_WEIGHT,
+    SOURCE_PATH_SCORE,
 )
 from src.indexing.vector_index import IndexNotFoundError
 
@@ -20,16 +21,23 @@ from src.indexing.vector_index import IndexNotFoundError
 # ---------------------------------------------------------------------------
 
 class FakeVectorIndex:
-    """Returns canned results for query()."""
+    """Returns canned results for query().
 
-    def __init__(self, results=None, raise_error=False):
+    Supports optional ``where`` filter: when ``where`` is provided and
+    ``filtered_results`` was set at init, those are returned instead.
+    """
+
+    def __init__(self, results=None, raise_error=False, filtered_results=None):
         self._results = results or []
         self._raise_error = raise_error
+        self._filtered_results = filtered_results or []
 
-    def query(self, log_embedding, top_k=20):
+    def query(self, log_embedding, top_k=20, where=None):
         if self._raise_error:
             raise IndexNotFoundError("No collection")
-        return self._results
+        if where is not None:
+            return self._filtered_results[:top_k]
+        return self._results[:top_k]
 
 
 class FakeBM25Index:
@@ -259,75 +267,82 @@ class TestFileDeduplication:
         assert len(results) == 3  # All three results kept
 
 
-class TestSourcePathBoost:
-    """Fix 4: Source path boost increases scores for matching file paths."""
+class TestSourcePathInjection:
+    """Fix 4: Direct source path chunk injection from ChromaDB."""
 
-    def test_boost_increases_matching_score(self):
+    # Chunks that would be returned by the where-filter query
+    INJECTED_CHUNKS = [
+        {"chunk_id": "target.cc::func_x", "file_path": "target.cc",
+         "function_name": "func_x", "start_line": 23, "score": 0.3},
+    ]
+
+    def test_injection_adds_missing_file(self):
+        """A file not in hybrid results should appear after injection."""
         retriever = HybridRetriever(
-            FakeVectorIndex(DENSE_RESULTS),
+            FakeVectorIndex(DENSE_RESULTS, filtered_results=self.INJECTED_CHUNKS),
             FakeBM25Index([]),
         )
-        # Without boost
-        results_no_boost = retriever.retrieve(
+        results = retriever.retrieve(
+            FAKE_EMBEDDING, "test", top_k=10,
+            source_paths=["target.cc"], deduplicate_files=False,
+        )
+        file_paths = [r.file_path for r in results]
+        assert "target.cc" in file_paths
+
+    def test_injected_chunk_has_high_score(self):
+        """Injected chunks should get SOURCE_PATH_SCORE (0.95)."""
+        retriever = HybridRetriever(
+            FakeVectorIndex(DENSE_RESULTS, filtered_results=self.INJECTED_CHUNKS),
+            FakeBM25Index([]),
+        )
+        results = retriever.retrieve(
+            FAKE_EMBEDDING, "test", top_k=10,
+            source_paths=["target.cc"], deduplicate_files=False,
+        )
+        target = [r for r in results if r.file_path == "target.cc"][0]
+        assert target.score == SOURCE_PATH_SCORE
+
+    def test_injected_chunk_ranks_first(self):
+        """Injected file should be rank 1 (highest score)."""
+        retriever = HybridRetriever(
+            FakeVectorIndex(DENSE_RESULTS, filtered_results=self.INJECTED_CHUNKS),
+            FakeBM25Index([]),
+        )
+        results = retriever.retrieve(
+            FAKE_EMBEDDING, "test", top_k=10,
+            source_paths=["target.cc"], deduplicate_files=True,
+        )
+        assert results[0].file_path == "target.cc"
+        assert results[0].rank == 1
+
+    def test_no_source_paths_no_injection(self):
+        """Without source_paths, no injection occurs."""
+        retriever = HybridRetriever(
+            FakeVectorIndex(DENSE_RESULTS, filtered_results=self.INJECTED_CHUNKS),
+            FakeBM25Index([]),
+        )
+        results = retriever.retrieve(
             FAKE_EMBEDDING, "test", top_k=10,
             source_paths=None, deduplicate_files=False,
         )
-        score_a_no_boost = [r for r in results_no_boost if r.file_path == "a.cpp"][0].score
+        file_paths = [r.file_path for r in results]
+        assert "target.cc" not in file_paths
 
-        # With boost matching a.cpp
-        results_boosted = retriever.retrieve(
+    def test_injection_upgrades_existing_chunk(self):
+        """If injected chunk already in fused pool, its score is upgraded."""
+        # a.cpp is already in DENSE_RESULTS
+        existing_chunk = [
+            {"chunk_id": "a.cpp::foo", "file_path": "a.cpp",
+             "function_name": "foo", "start_line": 10, "score": 0.2},
+        ]
+        retriever = HybridRetriever(
+            FakeVectorIndex(DENSE_RESULTS, filtered_results=existing_chunk),
+            FakeBM25Index([]),
+        )
+        results = retriever.retrieve(
             FAKE_EMBEDDING, "test", top_k=10,
             source_paths=["a.cpp"], deduplicate_files=False,
         )
-        score_a_boosted = [r for r in results_boosted if r.file_path == "a.cpp"][0].score
-
-        assert score_a_boosted > score_a_no_boost
-
-    def test_boost_can_change_ranking(self):
-        """A low-scoring result can jump to #1 if its path matches."""
-        retriever = HybridRetriever(
-            FakeVectorIndex(DENSE_RESULTS),
-            FakeBM25Index([]),
-        )
-        # c.cpp has the lowest dense score (0.5)
-        results = retriever.retrieve(
-            FAKE_EMBEDDING, "test", top_k=10,
-            source_paths=["c.cpp"], deduplicate_files=False,
-        )
-        # c.cpp should be boosted to rank 1
-        assert results[0].file_path == "c.cpp"
-
-    def test_boost_no_match_unchanged(self):
-        """Non-matching results should not be affected."""
-        retriever = HybridRetriever(
-            FakeVectorIndex(DENSE_RESULTS),
-            FakeBM25Index([]),
-        )
-        results_no_boost = retriever.retrieve(
-            FAKE_EMBEDDING, "test", top_k=10,
-            source_paths=None, deduplicate_files=False,
-        )
-        results_boosted = retriever.retrieve(
-            FAKE_EMBEDDING, "test", top_k=10,
-            source_paths=["nonexistent.cpp"], deduplicate_files=False,
-        )
-        # Scores should be identical for all results
-        for r1, r2 in zip(
-            sorted(results_no_boost, key=lambda r: r.chunk_id),
-            sorted(results_boosted, key=lambda r: r.chunk_id),
-        ):
-            assert abs(r1.score - r2.score) < 1e-6
-
-    def test_suffix_matching(self):
-        """Boost should work with suffix matching (a.cpp matches dir/a.cpp)."""
-        retriever = HybridRetriever(
-            FakeVectorIndex(DENSE_RESULTS),
-            FakeBM25Index([]),
-        )
-        results = retriever.retrieve(
-            FAKE_EMBEDDING, "test", top_k=10,
-            source_paths=["path/to/a.cpp"], deduplicate_files=False,
-        )
         a_result = [r for r in results if r.file_path == "a.cpp"][0]
-        # a.cpp should be boosted because "a.cpp" is a suffix of "path/to/a.cpp"
-        assert a_result.score > 0.5  # Would be 0.5 (dense=1.0 * 0.5) without boost
+        # Score should be upgraded to SOURCE_PATH_SCORE
+        assert a_result.score == SOURCE_PATH_SCORE

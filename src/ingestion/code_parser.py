@@ -80,6 +80,7 @@ def parse_repository(
     all_chunks: List[Chunk] = []
     files_parsed = 0
     files_skipped = 0
+    files_fallback = 0
 
     for ext in CPP_EXTENSIONS:
         for file_path in repo_path.rglob(f"*{ext}"):
@@ -88,15 +89,24 @@ def parse_repository(
                 files_skipped += 1
                 continue
             chunks = parse_file(file_path, repo_path, parser=parser)
+            if len(chunks) == 1 and chunks[0].function_name == "__file__":
+                files_fallback += 1
             all_chunks.extend(chunks)
             files_parsed += 1
 
     if files_skipped:
         logger.info("Skipped %d test/benchmark files", files_skipped)
+    if files_fallback:
+        logger.info(
+            "%d files fell back to file-level chunks (no functions found)",
+            files_fallback,
+        )
     logger.info(
-        "Parsed %d C++ files → %d function chunks",
+        "Parsed %d C++ files, %d chunks (%d function-level, %d file-level)",
         files_parsed,
         len(all_chunks),
+        len(all_chunks) - files_fallback,
+        files_fallback,
     )
     return all_chunks
 
@@ -150,6 +160,25 @@ def parse_file(
     # --- walk AST and collect function_definition nodes --------------------
     chunks: List[Chunk] = []
     _walk_for_functions(tree.root_node, rel_path, source_bytes, chunks)
+
+    # --- fallback: file-level chunk when no functions found ----------------
+    if len(chunks) == 0:
+        source_text = source_bytes.decode("utf-8", errors="replace")
+        if len(source_text.strip()) > 0:
+            logger.debug(
+                "No functions found in %s — creating file-level chunk",
+                rel_path,
+            )
+            chunks.append(Chunk(
+                chunk_id=f"{rel_path}::__file__",
+                file_path=rel_path,
+                function_name="__file__",
+                start_line=1,
+                end_line=len(source_text.splitlines()),
+                code_text=source_text[:2000],
+                language="cpp",
+            ))
+
     return chunks
 
 

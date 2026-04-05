@@ -224,3 +224,53 @@ int gamma(int x) { return x; }
         paths = {c.file_path for c in parse_repository(tmp_path, parser=cpp_parser)}
         assert "a.cpp" in paths
         assert "b.cpp" in paths
+
+
+# ---------------------------------------------------------------------------
+# 8. File-level fallback chunk
+# ---------------------------------------------------------------------------
+
+class TestFileLevelFallback:
+    """When tree-sitter finds no function_definition nodes, parse_file
+    should create a single __file__ chunk so the file is still indexed."""
+
+    CODE_NO_FUNCTIONS = (
+        "#include <string>\n"
+        "\n"
+        "// This file has macros and typedefs but no functions.\n"
+        "typedef unsigned int uint32;\n"
+        "#define MAX_SIZE 1024\n"
+        "using MyString = std::string;\n"
+    )
+
+    def test_produces_one_chunk(self, tmp_path, cpp_parser):
+        f = _write_cpp(tmp_path, "macros_only.cpp", self.CODE_NO_FUNCTIONS)
+        chunks = parse_file(f, tmp_path, parser=cpp_parser)
+        assert len(chunks) == 1
+
+    def test_function_name_is_file(self, tmp_path, cpp_parser):
+        f = _write_cpp(tmp_path, "macros_only.cpp", self.CODE_NO_FUNCTIONS)
+        chunks = parse_file(f, tmp_path, parser=cpp_parser)
+        assert chunks[0].function_name == "__file__"
+
+    def test_chunk_id_format(self, tmp_path, cpp_parser):
+        f = _write_cpp(tmp_path, "macros_only.cpp", self.CODE_NO_FUNCTIONS)
+        chunks = parse_file(f, tmp_path, parser=cpp_parser)
+        assert chunks[0].chunk_id == "macros_only.cpp::__file__"
+
+    def test_code_text_contains_content(self, tmp_path, cpp_parser):
+        f = _write_cpp(tmp_path, "macros_only.cpp", self.CODE_NO_FUNCTIONS)
+        chunks = parse_file(f, tmp_path, parser=cpp_parser)
+        assert "MAX_SIZE" in chunks[0].code_text
+
+    def test_empty_file_produces_no_chunks(self, tmp_path, cpp_parser):
+        """A truly empty file should still produce 0 chunks."""
+        f = _write_cpp(tmp_path, "empty.cpp", "")
+        chunks = parse_file(f, tmp_path, parser=cpp_parser)
+        assert len(chunks) == 0
+
+    def test_whitespace_only_produces_no_chunks(self, tmp_path, cpp_parser):
+        f = _write_cpp(tmp_path, "blank.cpp", "   \n\n  \n")
+        chunks = parse_file(f, tmp_path, parser=cpp_parser)
+        assert len(chunks) == 0
+

@@ -171,8 +171,8 @@ def query(log_path, repo, top_k, verbose, output):
         # 2. Parse log.
         from src.ingestion.log_parser import parse_log, extract_source_paths
 
-        parsed_log = parse_log(log_text)
-        source_paths = extract_source_paths(log_text, repo_root=repo_path)
+        parsed_log = parse_log(log_text, repo_root=repo_path)
+        source_paths = parsed_log.source_paths or extract_source_paths(log_text, repo_root=repo_path)
 
         # 3. Load indices.
         from src.indexing.vector_index import VectorIndex

@@ -123,7 +123,10 @@ def evaluate_dataset(
         error_type = item.get("error_type", "unknown")
 
         # Parse → embed → retrieve.
-        parsed_log = log_parser.parse_log(log_text)
+        try:
+            parsed_log = log_parser.parse_log(log_text, repo_root=repo_root)
+        except TypeError:
+            parsed_log = log_parser.parse_log(log_text)
         log_embedding = log_embedder.embed_log(parsed_log)
 
         # Extract source paths for file-path boost.

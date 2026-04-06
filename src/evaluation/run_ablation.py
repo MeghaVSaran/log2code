@@ -121,7 +121,10 @@ def run_single_config(
         sample_id = item.get("id", "unknown")
 
         # Parse log
-        parsed = log_parser_mod.parse_log(log_text)
+        try:
+            parsed = log_parser_mod.parse_log(log_text, repo_root=repo_root)
+        except TypeError:
+            parsed = log_parser_mod.parse_log(log_text)
         log_embedding = log_embedder.embed_log(parsed)
 
         # Extract source paths

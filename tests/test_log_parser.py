@@ -570,6 +570,13 @@ class TestSourcePathExtraction:
     LOG_RELATIVE_PATH = (
         "absl/strings/str_cat.cc:143:16: error: foo\n"
     )
+    LOG_OBJECT_PATH = (
+        "absl/base/internal/low_level_alloc_test.cc.o: in function `main`\n"
+    )
+    LOG_CMAKE_OBJECT_PATH = (
+        "cd /tmp/abseil/build/absl/flags && /usr/bin/c++ ... "
+        "CMakeFiles/flags_internal.dir/internal/flag.cc.o ...\n"
+    )
 
     LOG_NO_PATH = (
         "error: use of undeclared identifier 'foo'\n"
@@ -617,6 +624,17 @@ class TestSourcePathExtraction:
     def test_relative_source_path_is_extracted(self):
         paths = extract_source_paths(self.LOG_RELATIVE_PATH)
         assert "absl/strings/str_cat.cc" in paths
+
+    def test_object_path_is_normalized(self):
+        paths = extract_source_paths(self.LOG_OBJECT_PATH)
+        assert "absl/base/internal/low_level_alloc_test.cc" in paths
+
+    def test_cmake_object_path_uses_component_context(self, tmp_path):
+        target = tmp_path / "absl" / "flags" / "internal" / "flag.cc"
+        target.parent.mkdir(parents=True)
+        target.touch()
+        paths = extract_source_paths(self.LOG_CMAKE_OBJECT_PATH, repo_root=tmp_path)
+        assert "absl/flags/internal/flag.cc" in paths
 
 
 # ---------------------------------------------------------------------------

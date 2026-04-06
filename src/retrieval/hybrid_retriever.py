@@ -23,6 +23,7 @@ DEFAULT_CANDIDATES = 20   # fetch this many from each index before fusion
 DEFAULT_TOP_K = 5
 SOURCE_PATH_SCORE = 0.95   # fixed score for directly-fetched source path chunks
 SYMBOL_CANDIDATES = 20
+HINT_CANDIDATES = 20
 
 
 @dataclass
@@ -115,6 +116,9 @@ class HybridRetriever:
             symbol_results = self._get_symbol_candidates(parsed_log)
             if symbol_results:
                 bm25_results = self._merge_candidates(bm25_results, symbol_results)
+            hint_results = self._get_hint_candidates(parsed_log)
+            if hint_results:
+                bm25_results = self._merge_candidates(bm25_results, hint_results)
 
         # --- fuse ----------------------------------------------------------
         fused = self._fuse(dense_results, bm25_results)
@@ -370,6 +374,26 @@ class HybridRetriever:
             reverse=True,
         )[:DEFAULT_CANDIDATES]
 
+    def _get_hint_candidates(self, parsed_log) -> List[Dict]:
+        """Retrieve additional candidates from normalized path/file hints."""
+        if parsed_log is None:
+            return []
+        hints = list(getattr(parsed_log, "source_paths", [])) + list(
+            getattr(parsed_log, "file_hints", [])
+        )
+        # Keep only path-like hints with at least one slash.
+        hint_terms = [h for h in hints if isinstance(h, str) and ("/" in h or "\\" in h)]
+        if not hint_terms:
+            return []
+        query_text = " ".join(hint_terms)
+        if not query_text.strip():
+            return []
+        try:
+            return self.bm25_index.query(query_text, top_k=HINT_CANDIDATES)
+        except Exception as exc:
+            logger.warning("Hint candidate query failed: %s", exc)
+            return []
+
     def _apply_symbol_boosts(
         self,
         results: List[RetrievalResult],
@@ -393,7 +417,11 @@ class HybridRetriever:
         }
 
         if not full_identifiers and not stack_symbols:
-            return results
+            path_prefixes = self._derive_path_prefixes(parsed_log)
+            if not path_prefixes:
+                return results
+        else:
+            path_prefixes = self._derive_path_prefixes(parsed_log)
 
         for result in results:
             function_name = self._normalize_symbol(result.function_name)
@@ -414,6 +442,11 @@ class HybridRetriever:
                 boost += 0.08
             if file_stem and file_stem in base_identifiers:
                 boost += 0.05
+            if path_prefixes and any(
+                result.file_path == pref or result.file_path.startswith(f"{pref}/")
+                for pref in path_prefixes
+            ):
+                boost += 0.10
 
             result.symbol_score = min(boost, 0.75)
             result.score = min(1.0, result.score + result.symbol_score)
@@ -429,3 +462,22 @@ class HybridRetriever:
         if "(" in value:
             value = value.split("(", 1)[0]
         return value.strip("`'\" ")
+
+    def _derive_path_prefixes(self, parsed_log) -> List[str]:
+        """Derive component prefixes from parsed path hints."""
+        raw_paths = list(getattr(parsed_log, "source_paths", [])) + list(
+            getattr(parsed_log, "file_hints", [])
+        )
+        prefixes: set[str] = set()
+        for path in raw_paths:
+            if not isinstance(path, str):
+                continue
+            path = path.replace("\\", "/").strip("/")
+            if not path or "/" not in path:
+                continue
+            parts = [p for p in path.split("/") if p]
+            if len(parts) >= 2:
+                prefixes.add("/".join(parts[:2]))
+            if len(parts) >= 3:
+                prefixes.add("/".join(parts[:3]))
+        return sorted(prefixes)

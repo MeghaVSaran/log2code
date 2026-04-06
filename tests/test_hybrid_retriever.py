@@ -546,3 +546,29 @@ class TestNormalizationEdgeCases:
         )
         results = retriever.retrieve(FAKE_EMBEDDING, "one", top_k=1)
         assert results[0].dense_score == pytest.approx(1.0)
+
+
+class TestPathContextBoosting:
+    """Path hints should influence ranking even without explicit identifiers."""
+
+    def test_component_prefix_hint_boosts_matching_paths(self):
+        dense = [
+            {"chunk_id": "a.cpp::x", "file_path": "absl/base/config.h",
+             "function_name": "x", "start_line": 1, "score": 0.6},
+            {"chunk_id": "b.cpp::y", "file_path": "absl/strings/str_cat.cc",
+             "function_name": "y", "start_line": 1, "score": 0.6},
+        ]
+        retriever = HybridRetriever(
+            FakeVectorIndex(dense),
+            FakeBM25Index([]),
+        )
+        parsed = parse_log("linker output")
+        parsed.source_paths = ["absl/base/internal/low_level_alloc_test.cc"]
+        results = retriever.retrieve(
+            FAKE_EMBEDDING,
+            "linker output",
+            top_k=2,
+            parsed_log=parsed,
+            deduplicate_files=False,
+        )
+        assert results[0].file_path == "absl/base/config.h"

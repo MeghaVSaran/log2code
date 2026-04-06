@@ -141,6 +141,15 @@ _RE_SOURCE_PATH = re.compile(
     r"((?:[A-Za-z]:)?[\\/][^\s:]+?\.(?:cc|cpp|h|hpp|c|cxx|hxx)"
     r"|(?:[\w.\-]+[\\/])+[\w.\-]+\.(?:cc|cpp|h|hpp|c|cxx|hxx)):(\d+)(?::(\d+))?:",
 )
+_RE_OBJECT_PATH = re.compile(
+    r"([A-Za-z0-9_./\\-]+\.(?:cc|cpp|h|hpp|c|cxx|hxx))(?:\.pic)?\.o\b"
+)
+_RE_CMAKE_OBJECT = re.compile(
+    r"CMakeFiles[\\/][^\\/]+\.dir[\\/](.+?\.(?:cc|cpp|h|hpp|c|cxx|hxx))(?:\.pic)?\.o\b"
+)
+_RE_BUILD_COMPONENT_DIR = re.compile(
+    r"cd\s+[^\n]*?/(absl/[A-Za-z0-9_./-]+)\s*(?:&&|$)"
+)
 
 # Ordered list used by extract_error_type — first match wins.
 _ERROR_PATTERNS = [
@@ -464,10 +473,27 @@ def extract_source_paths(
     raw_paths: set = set()
     for match in _RE_SOURCE_PATH.finditer(log_text):
         raw_paths.add(match.group(1))
+    for match in _RE_OBJECT_PATH.finditer(log_text):
+        raw_paths.add(match.group(1))
+    for match in _RE_CMAKE_OBJECT.finditer(log_text):
+        raw_paths.add(match.group(1))
+    for match in _RE_FILE_HINT.finditer(log_text):
+        candidate = match.group(1)
+        if "/" in candidate or "\\" in candidate:
+            raw_paths.add(candidate)
+
+    component_prefixes: List[str] = []
+    for match in _RE_BUILD_COMPONENT_DIR.finditer(log_text):
+        prefix = match.group(1).replace("\\", "/").strip("/")
+        if prefix and prefix not in component_prefixes:
+            component_prefixes.append(prefix)
 
     normalized: set = set()
     for raw in raw_paths:
-        parts = Path(raw).parts
+        raw_slash = raw.replace("\\", "/")
+        if raw_slash.startswith("./"):
+            raw_slash = raw_slash[2:]
+        parts = Path(raw_slash).parts
         best: Optional[str] = None
         is_rooted = bool(parts) and (
             parts[0] in ("\\", "/") or bool(re.match(r"^[A-Za-z]:$", parts[0]))
@@ -475,25 +501,40 @@ def extract_source_paths(
 
         if repo_root is not None:
             resolved_root = Path(repo_root).resolve()
-            # Try successively shorter suffixes of the path.
-            # For rooted absolute paths skip the root token.
-            start_idx = 1 if is_rooted else 0
-            for i in range(start_idx, len(parts)):
-                suffix = Path(*parts[i:])
-                candidate = resolved_root / suffix
-                if candidate.exists():
-                    # Keep the longest (most specific) match
-                    rel = str(suffix).replace("\\", "/")
-                    if best is None or len(rel) > len(best):
-                        best = rel
+            direct_candidate = resolved_root / raw_slash
+            if raw_slash and not is_rooted and direct_candidate.exists():
+                best = raw_slash
+
+            if best is None:
+                # Try successively shorter suffixes of the path.
+                # For rooted absolute paths skip the root token.
+                start_idx = 1 if is_rooted else 0
+                for i in range(start_idx, len(parts)):
+                    suffix = Path(*parts[i:])
+                    candidate = resolved_root / suffix
+                    if candidate.exists():
+                        # Keep the longest (most specific) match
+                        rel = str(suffix).replace("\\", "/")
+                        if best is None or len(rel) > len(best):
+                            best = rel
+
+            # Build-system context expansion:
+            # e.g. "internal/flag.cc" + "absl/flags" -> "absl/flags/internal/flag.cc"
+            if best is None and component_prefixes and raw_slash and not raw_slash.startswith("absl/"):
+                for prefix in component_prefixes:
+                    prefixed = f"{prefix.rstrip('/')}/{raw_slash.lstrip('/')}"
+                    candidate = resolved_root / prefixed
+                    if candidate.exists():
+                        best = prefixed
+                        break
 
         if best is None:
-            normalized_raw = raw.replace("\\", "/")
+            normalized_raw = raw_slash
             if not is_rooted and "/" in normalized_raw:
                 best = normalized_raw
             else:
                 # Fallback: use just the filename for BM25 matching
-                best = Path(raw).name
+                best = Path(raw_slash).name
 
         normalized.add(best)
 

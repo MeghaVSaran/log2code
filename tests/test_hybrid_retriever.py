@@ -604,3 +604,28 @@ class TestAdaptiveFusionWeights:
             deduplicate_files=False,
         )
         assert results[0].file_path == "good.cpp"
+
+    def test_strict_pathless_linker_raises_sparse_weight(self):
+        retriever = HybridRetriever(FakeVectorIndex([]), FakeBM25Index([]))
+        parsed = parse_log("undefined reference to `absl::StrCat`")
+        dense_normal, sparse_normal = retriever._select_fusion_weights(
+            parsed,
+            strict_pathless=False,
+        )
+        dense_strict, sparse_strict = retriever._select_fusion_weights(
+            parsed,
+            strict_pathless=True,
+        )
+        assert sparse_strict > sparse_normal
+        assert dense_strict < dense_normal
+        assert sparse_strict >= 0.9
+
+    def test_strict_pathless_segfault_raises_sparse_weight(self):
+        retriever = HybridRetriever(FakeVectorIndex([]), FakeBM25Index([]))
+        parsed = parse_log(
+            "Segmentation fault\n"
+            "#0  0x1 in Parser::resolveSymbol (this=0x0) at parser.cpp:42\n"
+        )
+        _, sparse_normal = retriever._select_fusion_weights(parsed, strict_pathless=False)
+        _, sparse_strict = retriever._select_fusion_weights(parsed, strict_pathless=True)
+        assert sparse_strict > sparse_normal

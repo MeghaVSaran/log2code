@@ -25,8 +25,9 @@ import logging
 import sys
 import time
 from collections import Counter, defaultdict
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field, asdict, replace
 from pathlib import Path
+import re
 from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -59,6 +60,7 @@ class SampleResult:
     recall_at_5: float
     mrr: float
     path_boost_enabled: bool
+    strict_pathless: bool = False
     top_scores: List[Dict] = field(default_factory=list)  # [{file, dense, bm25, fused}]
 
 
@@ -71,6 +73,49 @@ def _has_source_path(log_text: str, repo_root: Optional[Path] = None) -> bool:
     from src.ingestion.log_parser import extract_source_paths
     paths = extract_source_paths(log_text, repo_root=repo_root)
     return len(paths) > 0
+
+
+def _looks_like_path_hint(value: str) -> bool:
+    """Return True when a hint string looks like a filesystem path."""
+    if not value:
+        return False
+    candidate = value.strip()
+    return (
+        "/" in candidate
+        or "\\" in candidate
+        or bool(re.match(r"^[A-Za-z]:", candidate))
+        or candidate.startswith("./")
+        or candidate.startswith("../")
+    )
+
+
+def _strip_path_tokens(text: str) -> str:
+    """Remove slash-based path tokens from free text."""
+    if not text:
+        return text
+    kept_tokens: List[str] = []
+    for token in text.split():
+        core = token.strip("`'\"()[]{}:,;")
+        if _looks_like_path_hint(core):
+            continue
+        kept_tokens.append(token)
+    return " ".join(kept_tokens).strip()
+
+
+def _to_strict_pathless_parsed(parsed):
+    """Clone ParsedLog with all path-like hints removed."""
+    cleaned_hints = [
+        hint
+        for hint in getattr(parsed, "file_hints", [])
+        if not _looks_like_path_hint(hint)
+    ]
+    return replace(
+        parsed,
+        raw_log=_strip_path_tokens(getattr(parsed, "raw_log", "")),
+        error_message=_strip_path_tokens(getattr(parsed, "error_message", "")),
+        file_hints=cleaned_hints,
+        source_paths=[],
+    )
 
 
 def _recall_at_k(predictions: List[str], gt: List[str], k: int) -> float:
@@ -104,6 +149,7 @@ def run_single_config(
     log_parser_mod,
     log_embedder,
     repo_root: Optional[Path] = None,
+    strict_pathless: bool = False,
 ) -> List[SampleResult]:
     """Run a single ablation config on the whole dataset."""
     from src.ingestion.log_parser import extract_source_paths
@@ -125,21 +171,24 @@ def run_single_config(
             parsed = log_parser_mod.parse_log(log_text, repo_root=repo_root)
         except TypeError:
             parsed = log_parser_mod.parse_log(log_text)
-        log_embedding = log_embedder.embed_log(parsed)
+        retrieval_parsed = _to_strict_pathless_parsed(parsed) if strict_pathless else parsed
+        log_embedding = log_embedder.embed_log(retrieval_parsed)
 
         # Extract source paths
         source_paths = extract_source_paths(log_text, repo_root=repo_root)
         has_sp = len(source_paths) > 0
 
         # Retrieve
+        retrieval_source_paths = [] if strict_pathless else source_paths
         retrieved = retriever.retrieve(
             log_embedding,
-            parsed.query_text(),
+            retrieval_parsed.query_text(),
             top_k=5,
-            source_paths=source_paths if path_boost else None,
+            source_paths=retrieval_source_paths if path_boost else None,
             mode=mode,
             path_boost=path_boost,
-            parsed_log=parsed,
+            parsed_log=retrieval_parsed,
+            strict_pathless=strict_pathless,
         )
         pred_files = [r.file_path for r in retrieved]
 
@@ -169,6 +218,7 @@ def run_single_config(
             recall_at_5=_recall_at_k(pred_files, gt_files, 5),
             mrr=_mrr(pred_files, gt_files),
             path_boost_enabled=path_boost,
+            strict_pathless=strict_pathless,
             top_scores=top_scores,
         ))
 
@@ -227,6 +277,12 @@ def build_ablation_report(
             filtered = [r for r in results if r.has_source_path == has_sp]
             report["by_source_path"][bucket_name][config_name] = _aggregate_metrics(filtered)
 
+    # Dedicated strict pathless bucket: all samples evaluated with path hints stripped.
+    report["by_source_path"]["strict_no_path"] = {}
+    for config_name, results in all_results.items():
+        filtered = [r for r in results if r.strict_pathless]
+        report["by_source_path"]["strict_no_path"][config_name] = _aggregate_metrics(filtered)
+
     # Win/loss: path boost impact (hybrid with vs without)
     if ("hybrid_with_path_boost" in all_results and
             "hybrid_no_path_boost" in all_results):
@@ -277,6 +333,42 @@ def build_ablation_report(
             "same": same,
         }
 
+    return report
+
+
+def build_strict_no_path_report(
+    all_results: Dict[str, List[SampleResult]],
+) -> Dict:
+    """Build a dedicated report over strict-pathless samples only."""
+    report = {
+        "overall": {},
+        "by_error_type": {},
+        "n_total": 0,
+    }
+
+    strict_results_by_config: Dict[str, List[SampleResult]] = {
+        config_name: [r for r in results if r.strict_pathless]
+        for config_name, results in all_results.items()
+    }
+
+    for config_name, strict_results in strict_results_by_config.items():
+        report["overall"][config_name] = _aggregate_metrics(strict_results)
+
+    error_types = set()
+    for results in strict_results_by_config.values():
+        for r in results:
+            error_types.add(r.error_type)
+
+    for etype in sorted(error_types):
+        report["by_error_type"][etype] = {}
+        for config_name, strict_results in strict_results_by_config.items():
+            filtered = [r for r in strict_results if r.error_type == etype]
+            report["by_error_type"][etype][config_name] = _aggregate_metrics(filtered)
+
+    report["n_total"] = next(
+        (metrics["n"] for metrics in report["overall"].values()),
+        0,
+    )
     return report
 
 
@@ -351,6 +443,48 @@ def format_markdown_report(report: Dict, index_meta: Dict) -> str:
     return "\n".join(lines)
 
 
+def format_markdown_strict_no_path_report(report: Dict, index_meta: Dict) -> str:
+    """Generate markdown for strict pathless-only evaluation."""
+    lines = []
+    lines.append("# Strict Pathless Ablation Report\n")
+
+    if index_meta:
+        lines.append("## Index Info\n")
+        lines.append(f"- **Embedding backend**: {index_meta.get('embedding_backend', 'unknown')}")
+        lines.append(f"- **Model**: {index_meta.get('model_name', 'unknown')}")
+        lines.append(f"- **Chunks**: {index_meta.get('num_chunks', 'unknown')}")
+        lines.append(f"- **Indexed at**: {index_meta.get('indexed_at', 'unknown')}")
+        lines.append("")
+
+    lines.append(f"- **Strict pathless samples**: {report.get('n_total', 0)}")
+    lines.append("")
+    lines.append("## Overall Strict-No-Path Results\n")
+    lines.append(f"| {'Configuration':<35} | {'R@1':>5} | {'R@3':>5} | {'R@5':>5} | {'MRR':>6} | {'N':>4} |")
+    lines.append(f"| {'-'*35} | {'-'*5} | {'-'*5} | {'-'*5} | {'-'*6} | {'-'*4} |")
+    for config_name, metrics in report["overall"].items():
+        lines.append(
+            f"| {config_name:<35} | {metrics['recall_at_1']:>5.3f} | "
+            f"{metrics['recall_at_3']:>5.3f} | {metrics['recall_at_5']:>5.3f} | "
+            f"{metrics['mrr']:>6.4f} | {metrics['n']:>4} |"
+        )
+    lines.append("")
+
+    lines.append("## By Error Type (Strict-No-Path)\n")
+    for etype, configs in report["by_error_type"].items():
+        lines.append(f"### {etype}\n")
+        lines.append(f"| {'Configuration':<35} | {'R@1':>5} | {'R@3':>5} | {'R@5':>5} | {'MRR':>6} | {'N':>4} |")
+        lines.append(f"| {'-'*35} | {'-'*5} | {'-'*5} | {'-'*5} | {'-'*6} | {'-'*4} |")
+        for config_name, metrics in configs.items():
+            lines.append(
+                f"| {config_name:<35} | {metrics['recall_at_1']:>5.3f} | "
+                f"{metrics['recall_at_3']:>5.3f} | {metrics['recall_at_5']:>5.3f} | "
+                f"{metrics['mrr']:>6.4f} | {metrics['n']:>4} |"
+            )
+        lines.append("")
+
+    return "\n".join(lines)
+
+
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
@@ -381,6 +515,12 @@ def main():
         "--repo-filter", default=None,
         help="Only evaluate samples whose ground-truth files all start with this prefix "
              "(e.g. 'absl/' when indexing abseil).",
+    )
+    parser.add_argument(
+        "--strict-pathless",
+        action="store_true",
+        help="Strip all path-like hints (source paths + slash-style file hints) "
+             "before retrieval and report strict_no_path metrics.",
     )
     args = parser.parse_args()
 
@@ -485,6 +625,7 @@ def main():
         results = run_single_config(
             config, dataset, retriever, log_parser_mod, log_embedder,
             repo_root=repo_path,
+            strict_pathless=args.strict_pathless,
         )
         all_results[cname] = results
 
@@ -525,6 +666,18 @@ def main():
     md_text = format_markdown_report(report, index_meta)
     md_path.write_text(md_text, encoding="utf-8")
     print(f"Markdown report: {md_path}")
+
+    if args.strict_pathless:
+        strict_report = build_strict_no_path_report(all_results)
+        strict_json_path = output_dir / "ablation_results_strict_no_path.json"
+        with open(strict_json_path, "w", encoding="utf-8") as f:
+            json.dump(strict_report, f, indent=2, ensure_ascii=False)
+        print(f"Strict-no-path JSON report: {strict_json_path}")
+
+        strict_md_path = output_dir / "ablation_report_strict_no_path.md"
+        strict_md_text = format_markdown_strict_no_path_report(strict_report, index_meta)
+        strict_md_path.write_text(strict_md_text, encoding="utf-8")
+        print(f"Strict-no-path Markdown report: {strict_md_path}")
 
     # Print summary table
     print("\n" + md_text)

@@ -68,6 +68,7 @@ class HybridRetriever:
         mode: str = "hybrid",
         path_boost: bool = True,
         parsed_log=None,
+        strict_pathless: bool = False,
     ) -> List[RetrievalResult]:
         """Retrieve top-k most relevant code chunks for a log.
 
@@ -121,7 +122,10 @@ class HybridRetriever:
             if hint_results:
                 bm25_results = self._merge_candidates(bm25_results, hint_results)
 
-        dense_weight, sparse_weight = self._select_fusion_weights(parsed_log)
+        dense_weight, sparse_weight = self._select_fusion_weights(
+            parsed_log,
+            strict_pathless=strict_pathless,
+        )
 
         # --- fuse ----------------------------------------------------------
         fused = self._fuse(
@@ -139,7 +143,11 @@ class HybridRetriever:
             fused = self._inject_source_chunks(fused, injected)
 
         if parsed_log is not None:
-            fused = self._apply_symbol_boosts(fused, parsed_log)
+            fused = self._apply_symbol_boosts(
+                fused,
+                parsed_log,
+                strict_pathless=strict_pathless,
+            )
 
         # Sort descending by fused score, assign ranks.
         fused.sort(key=lambda r: r.score, reverse=True)
@@ -414,7 +422,11 @@ class HybridRetriever:
             logger.warning("Hint candidate query failed: %s", exc)
             return []
 
-    def _select_fusion_weights(self, parsed_log) -> tuple[float, float]:
+    def _select_fusion_weights(
+        self,
+        parsed_log,
+        strict_pathless: bool = False,
+    ) -> tuple[float, float]:
         """Choose dense/sparse fusion weights based on query structure."""
         dense_weight = DENSE_WEIGHT
         sparse_weight = SPARSE_WEIGHT
@@ -428,13 +440,19 @@ class HybridRetriever:
             getattr(parsed_log, "file_hints", [])
         )
 
-        if error_type in {
-            "compiler_error",
-            "linker_error",
-            "include_error",
-            "template_error",
-            "build_system_error",
-        }:
+        if strict_pathless:
+            if error_type == "linker_error":
+                sparse_weight = 0.92 if has_identifiers else 0.84
+            elif error_type in {"compiler_error", "include_error", "template_error", "build_system_error"}:
+                sparse_weight = 0.86 if has_identifiers else 0.78
+            elif error_type in {"segfault", "asan_error"}:
+                sparse_weight = 0.80 if (has_stack or has_identifiers) else 0.70
+            elif error_type == "runtime_exception":
+                sparse_weight = 0.72 if has_identifiers else 0.64
+            dense_weight = 1.0 - sparse_weight
+            return dense_weight, sparse_weight
+
+        if error_type in {"compiler_error", "linker_error", "include_error", "template_error", "build_system_error"}:
             sparse_weight = 0.80 if has_identifiers else 0.72
             dense_weight = 1.0 - sparse_weight
         elif error_type in {"segfault", "asan_error", "runtime_exception"}:
@@ -451,6 +469,7 @@ class HybridRetriever:
         self,
         results: List[RetrievalResult],
         parsed_log,
+        strict_pathless: bool = False,
     ) -> List[RetrievalResult]:
         """Boost results whose symbol metadata matches parsed log evidence."""
         full_identifiers = {
@@ -485,23 +504,40 @@ class HybridRetriever:
             file_stem = self._normalize_symbol(Path(result.file_path).stem)
             boost = 0.0
 
-            if function_name in full_identifiers:
-                boost += 0.45
-            if function_name in stack_symbols:
-                boost += 0.25
-            if symbol_name in base_identifiers:
-                boost += 0.20
-            if signature and any(identifier in signature for identifier in full_identifiers):
-                boost += 0.08
-            if file_stem and file_stem in base_identifiers:
-                boost += 0.05
-            if path_prefixes and any(
-                result.file_path == pref or result.file_path.startswith(f"{pref}/")
-                for pref in path_prefixes
-            ):
-                boost += 0.10
+            error_type = getattr(parsed_log, "error_type", "unknown")
+            strict_symbol_mode = strict_pathless and error_type in {"linker_error", "segfault", "asan_error"}
 
-            result.symbol_score = min(boost, 0.75)
+            if strict_symbol_mode:
+                if function_name in full_identifiers:
+                    boost += 0.58
+                if function_name in stack_symbols:
+                    boost += 0.35
+                if symbol_name in base_identifiers:
+                    boost += 0.28
+                if signature and any(identifier in signature for identifier in full_identifiers):
+                    boost += 0.12
+                if file_stem and file_stem in base_identifiers:
+                    boost += 0.03
+                max_boost = 0.90
+            else:
+                if function_name in full_identifiers:
+                    boost += 0.45
+                if function_name in stack_symbols:
+                    boost += 0.25
+                if symbol_name in base_identifiers:
+                    boost += 0.20
+                if signature and any(identifier in signature for identifier in full_identifiers):
+                    boost += 0.08
+                if file_stem and file_stem in base_identifiers:
+                    boost += 0.05
+                if path_prefixes and any(
+                    result.file_path == pref or result.file_path.startswith(f"{pref}/")
+                    for pref in path_prefixes
+                ):
+                    boost += 0.10
+                max_boost = 0.75
+
+            result.symbol_score = min(boost, max_boost)
             result.score = min(1.0, result.score + result.symbol_score)
 
         return results

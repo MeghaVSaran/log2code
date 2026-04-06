@@ -136,6 +136,7 @@ def run_single_config(
             source_paths=source_paths if path_boost else None,
             mode=mode,
             path_boost=path_boost,
+            parsed_log=parsed,
         )
         pred_files = [r.file_path for r in retrieved]
 
@@ -146,6 +147,7 @@ def run_single_config(
                 "function": r.function_name,
                 "dense_score": round(r.dense_score, 4),
                 "bm25_score": round(r.bm25_score, 4),
+                "symbol_score": round(getattr(r, "symbol_score", 0.0), 4),
                 "fused_score": round(r.score, 4),
             }
             for r in retrieved
@@ -372,6 +374,11 @@ def main():
         "--configs", nargs="*", default=None,
         help="Subset of configs to run (default: all 5)",
     )
+    parser.add_argument(
+        "--repo-filter", default=None,
+        help="Only evaluate samples whose ground-truth files all start with this prefix "
+             "(e.g. 'absl/' when indexing abseil).",
+    )
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.WARNING)
@@ -409,6 +416,32 @@ def main():
     with open(args.dataset, "r", encoding="utf-8") as f:
         dataset = json.load(f)
     print(f"Loaded {len(dataset)} samples from {args.dataset}")
+
+    if args.repo_filter:
+        before = len(dataset)
+        dataset = [
+            item for item in dataset
+            if all(path.startswith(args.repo_filter) for path in item.get("relevant_files", []))
+        ]
+        print(
+            f"Filtered dataset by prefix '{args.repo_filter}': "
+            f"{len(dataset)}/{before} samples"
+        )
+        if not dataset:
+            print("No samples left after --repo-filter; exiting.", file=sys.stderr)
+            sys.exit(1)
+
+    else:
+        in_repo = 0
+        for item in dataset:
+            gt = item.get("relevant_files", [])
+            if gt and all((repo_path / rel).exists() for rel in gt):
+                in_repo += 1
+        if in_repo < len(dataset):
+            print(
+                f"Warning: only {in_repo}/{len(dataset)} samples have ground-truth files "
+                f"inside indexed repo '{repo_path.name}'. Consider --repo-filter."
+            )
 
     # Load indices
     from src.indexing.vector_index import VectorIndex

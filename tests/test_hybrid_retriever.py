@@ -44,11 +44,15 @@ class FakeVectorIndex:
 class FakeBM25Index:
     """Returns canned results for query()."""
 
-    def __init__(self, results=None):
+    def __init__(self, results=None, symbol_results=None):
         self._results = results or []
+        self._symbol_results = symbol_results or []
 
     def query(self, text, top_k=20):
         return self._results
+
+    def query_by_symbols(self, identifiers, top_k=20):
+        return self._symbol_results[:top_k]
 
 
 # ---------------------------------------------------------------------------
@@ -509,3 +513,36 @@ class TestSymbolAwareBoosting:
             deduplicate_files=False,
         )
         assert results[0].function_name == "Parser::resolveSymbol"
+
+    def test_symbol_candidates_can_surface_missing_chunk(self):
+        retriever = HybridRetriever(
+            FakeVectorIndex([self.SYMBOL_DENSE[0]]),
+            FakeBM25Index(
+                results=[],
+                symbol_results=[self.SYMBOL_DENSE[1]],
+            ),
+        )
+        parsed_log = parse_log("undefined reference to `Parser::resolveSymbol`")
+        results = retriever.retrieve(
+            FAKE_EMBEDDING,
+            parsed_log.query_text(),
+            top_k=5,
+            parsed_log=parsed_log,
+            deduplicate_files=False,
+        )
+        assert any(r.function_name == "Parser::resolveSymbol" for r in results)
+
+
+class TestNormalizationEdgeCases:
+    """Single-score normalization should still preserve signal."""
+
+    def test_single_score_normalizes_to_one(self):
+        retriever = HybridRetriever(
+            FakeVectorIndex([
+                {"chunk_id": "only.cpp::one", "file_path": "only.cpp",
+                 "function_name": "one", "start_line": 1, "score": 0.2},
+            ]),
+            FakeBM25Index([]),
+        )
+        results = retriever.retrieve(FAKE_EMBEDDING, "one", top_k=1)
+        assert results[0].dense_score == pytest.approx(1.0)

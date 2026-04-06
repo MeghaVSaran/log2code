@@ -22,6 +22,7 @@ SPARSE_WEIGHT = 0.5
 DEFAULT_CANDIDATES = 20   # fetch this many from each index before fusion
 DEFAULT_TOP_K = 5
 SOURCE_PATH_SCORE = 0.95   # fixed score for directly-fetched source path chunks
+SYMBOL_CANDIDATES = 20
 
 
 @dataclass
@@ -111,6 +112,9 @@ class HybridRetriever:
             bm25_results = self.bm25_index.query(
                 log_text, top_k=DEFAULT_CANDIDATES
             )
+            symbol_results = self._get_symbol_candidates(parsed_log)
+            if symbol_results:
+                bm25_results = self._merge_candidates(bm25_results, symbol_results)
 
         # --- fuse ----------------------------------------------------------
         fused = self._fuse(dense_results, bm25_results)
@@ -153,7 +157,9 @@ class HybridRetriever:
             return []
         mn = min(scores)
         mx = max(scores)
-        denom = mx - mn + 1e-9
+        if abs(mx - mn) < 1e-9:
+            return [1.0] * len(scores)
+        denom = mx - mn
         return [(s - mn) / denom for s in scores]
 
     def _fuse(
@@ -327,6 +333,42 @@ class HybridRetriever:
                 seen.add(r.file_path)
                 deduped.append(r)
         return deduped
+
+    def _get_symbol_candidates(self, parsed_log) -> List[Dict]:
+        """Ask BM25 index for exact symbol-based candidates."""
+        if parsed_log is None:
+            return []
+        if not hasattr(self.bm25_index, "query_by_symbols"):
+            return []
+
+        identifiers = list(getattr(parsed_log, "identifiers", []))
+        if not identifiers:
+            return []
+        try:
+            return self.bm25_index.query_by_symbols(
+                identifiers,
+                top_k=SYMBOL_CANDIDATES,
+            )
+        except Exception as exc:
+            logger.warning("Symbol candidate query failed: %s", exc)
+            return []
+
+    def _merge_candidates(
+        self,
+        primary: List[Dict],
+        extra: List[Dict],
+    ) -> List[Dict]:
+        """Merge candidate dicts by chunk id, keeping max score."""
+        merged: Dict[str, Dict] = {}
+        for row in primary + extra:
+            cid = row["chunk_id"]
+            if cid not in merged or row.get("score", 0.0) > merged[cid].get("score", 0.0):
+                merged[cid] = row
+        return sorted(
+            merged.values(),
+            key=lambda r: r.get("score", 0.0),
+            reverse=True,
+        )[:DEFAULT_CANDIDATES]
 
     def _apply_symbol_boosts(
         self,

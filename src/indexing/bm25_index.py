@@ -9,6 +9,7 @@ from typing import List, Dict, Optional
 import logging
 import pickle
 import re
+from collections import defaultdict
 
 import numpy as np
 from rank_bm25 import BM25Okapi
@@ -43,6 +44,7 @@ class BM25Index:
     def __init__(self):
         self._index: Optional[BM25Okapi] = None
         self._chunks: List = []   # parallel list to BM25 corpus
+        self._symbol_lookup: Dict[str, set[int]] = {}
 
     def build(self, chunks: List) -> None:
         """Build BM25 index from a list of Chunk objects.
@@ -56,6 +58,7 @@ class BM25Index:
         self._chunks = list(chunks)
         corpus = [self._tokenize(self._build_search_text(c)) for c in self._chunks]
         self._index = BM25Okapi(corpus)
+        self._symbol_lookup = self._build_symbol_lookup(self._chunks)
         logger.info("Built BM25 index with %d chunks.", len(self._chunks))
 
     def query(self, text: str, top_k: int = 20) -> List[Dict]:
@@ -81,7 +84,7 @@ class BM25Index:
         scores = self._index.get_scores(tokenized_query)
 
         # If every score is zero there are no useful results.
-        if np.max(scores) == 0.0:
+        if np.allclose(scores, 0.0):
             return []
 
         # Argsort descending, take top_k.
@@ -90,8 +93,6 @@ class BM25Index:
         results: List[Dict] = []
         for idx in top_indices:
             score = float(scores[idx])
-            if score <= 0.0:
-                break  # remaining are zero or negative
             chunk = self._chunks[idx]
             results.append({
                 "chunk_id": chunk.chunk_id,
@@ -107,6 +108,56 @@ class BM25Index:
 
         return results
 
+    def query_by_symbols(
+        self,
+        identifiers: List[str],
+        top_k: int = 20,
+    ) -> List[Dict]:
+        """Return chunks matched by symbol names extracted from logs."""
+        if not identifiers or not self._chunks:
+            return []
+
+        score_by_idx: Dict[int, float] = defaultdict(float)
+
+        for raw_ident in identifiers:
+            ident = self._normalize_symbol(raw_ident)
+            if not ident:
+                continue
+
+            base = ident.split("::")[-1]
+            search_terms = [(ident, 3.0)]
+            if base != ident:
+                search_terms.append((base, 1.75))
+
+            for term, weight in search_terms:
+                for idx in self._symbol_lookup.get(term, set()):
+                    score_by_idx[idx] += weight
+
+        if not score_by_idx:
+            return []
+
+        ranked = sorted(
+            score_by_idx.items(),
+            key=lambda x: x[1],
+            reverse=True,
+        )[:top_k]
+
+        results: List[Dict] = []
+        for idx, score in ranked:
+            chunk = self._chunks[idx]
+            results.append({
+                "chunk_id": chunk.chunk_id,
+                "file_path": chunk.file_path,
+                "function_name": chunk.function_name,
+                "symbol_name": getattr(chunk, "symbol_name", ""),
+                "class_name": getattr(chunk, "class_name", ""),
+                "namespace": getattr(chunk, "namespace", ""),
+                "signature": getattr(chunk, "signature", ""),
+                "start_line": chunk.start_line,
+                "score": float(score),
+            })
+        return results
+
     def save(self, path: Path) -> None:
         """Persist index to disk using pickle.
 
@@ -116,7 +167,14 @@ class BM25Index:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "wb") as f:
-            pickle.dump({"index": self._index, "chunks": self._chunks}, f)
+            pickle.dump(
+                {
+                    "index": self._index,
+                    "chunks": self._chunks,
+                    "symbol_lookup": self._symbol_lookup,
+                },
+                f,
+            )
         logger.info("Saved BM25 index to %s.", path)
 
     def load(self, path: Path) -> None:
@@ -130,6 +188,7 @@ class BM25Index:
             data = pickle.load(f)
         self._index = data["index"]
         self._chunks = data["chunks"]
+        self._symbol_lookup = data.get("symbol_lookup") or self._build_symbol_lookup(self._chunks)
         logger.info(
             "Loaded BM25 index from %s (%d chunks).", path, len(self._chunks)
         )
@@ -193,3 +252,29 @@ class BM25Index:
             getattr(chunk, "code_text", ""),
         ]
         return "\n".join(part for part in parts if part)
+
+    def _build_symbol_lookup(self, chunks: List) -> Dict[str, set[int]]:
+        """Build a symbol -> chunk-index lookup table."""
+        lookup: Dict[str, set[int]] = defaultdict(set)
+        for idx, chunk in enumerate(chunks):
+            function_name = self._normalize_symbol(getattr(chunk, "function_name", ""))
+            symbol_name = self._normalize_symbol(getattr(chunk, "symbol_name", ""))
+            class_name = self._normalize_symbol(getattr(chunk, "class_name", ""))
+
+            candidates = {
+                function_name,
+                symbol_name,
+                function_name.split("::")[-1] if function_name else "",
+                f"{class_name}::{symbol_name}" if class_name and symbol_name else "",
+            }
+            for candidate in candidates:
+                if candidate:
+                    lookup[candidate].add(idx)
+        return dict(lookup)
+
+    def _normalize_symbol(self, symbol: str) -> str:
+        """Normalize raw identifier text into a lookup key."""
+        value = (symbol or "").strip().lower().strip("`'\"")
+        if "(" in value:
+            value = value.split("(", 1)[0]
+        return value.strip()

@@ -8,6 +8,7 @@ using synthetic C++ code strings and a FakeChunk dataclass.
 import pytest
 from pathlib import Path
 from dataclasses import dataclass
+import numpy as np
 
 from src.indexing.bm25_index import BM25Index
 
@@ -24,6 +25,10 @@ class FakeChunk:
     function_name: str
     start_line: int
     code_text: str
+    symbol_name: str = ""
+    class_name: str = ""
+    namespace: str = ""
+    signature: str = ""
 
 
 CHUNKS = [
@@ -181,3 +186,28 @@ class TestTokenize:
         idx = BM25Index()
         tokens = idx._tokenize("Parser::ResolveSymbol")
         assert all(t == t.lower() for t in tokens)
+
+
+class TestSymbolQuery:
+    """Symbol lookup should provide exact-candidate retrieval."""
+
+    def test_query_by_symbols_returns_exact_match(self):
+        idx = BM25Index()
+        idx.build(CHUNKS)
+        results = idx.query_by_symbols(["Parser::resolveSymbol"], top_k=3)
+        assert results
+        assert results[0]["chunk_id"] == "parser.cpp::Parser::resolveSymbol"
+
+    def test_negative_scores_not_dropped(self):
+        """Regression: BM25 can produce negative scores for common terms."""
+        idx = BM25Index()
+        idx._chunks = CHUNKS
+
+        class _FakeBM25:
+            @staticmethod
+            def get_scores(_):
+                return np.array([-0.2, -0.5, -0.8], dtype=float)
+
+        idx._index = _FakeBM25()
+        results = idx.query("parser", top_k=2)
+        assert len(results) == 2

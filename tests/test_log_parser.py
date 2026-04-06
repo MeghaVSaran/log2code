@@ -147,6 +147,10 @@ class TestSegfault:
         "#1  0x0000555555555230 in SymbolTable::lookup (this=0x7fffffffde10) at symbol_table.cpp:88\n"
         "#2  0x00005555555552f0 in main () at main.cpp:15\n"
     )
+    LOG_NO_IN = (
+        "#0 0x000055d251826584 llvm::sys::PrintStackTrace(llvm::raw_ostream&, int)\n"
+        "#1 0x000055d251826bd4 SignalHandler(int) Signals.cpp:0:0\n"
+    )
 
     def test_error_type(self):
         result = parse_log(self.LOG)
@@ -165,6 +169,12 @@ class TestSegfault:
         result = parse_log(self.LOG)
         assert "resolve.cpp" in result.file_hints
         assert "symbol_table.cpp" in result.file_hints
+
+    def test_stack_frame_without_in_keyword(self):
+        result = parse_log(self.LOG_NO_IN)
+        assert result.error_type == "segfault"
+        assert "llvm::sys::PrintStackTrace" in result.identifiers
+        assert "SignalHandler" in result.identifiers
 
 
 # ---------------------------------------------------------------------------
@@ -557,6 +567,9 @@ class TestSourcePathExtraction:
         "/tmp/abseil/absl/strings/str_cat.cc:143:16: error: foo\n"
         "/tmp/abseil/absl/strings/str_join.h:50:5: error: bar\n"
     )
+    LOG_RELATIVE_PATH = (
+        "absl/strings/str_cat.cc:143:16: error: foo\n"
+    )
 
     LOG_NO_PATH = (
         "error: use of undeclared identifier 'foo'\n"
@@ -601,6 +614,10 @@ class TestSourcePathExtraction:
             # Should prefer the longer suffix
             assert "absl/strings/str_cat.cc" in paths
 
+    def test_relative_source_path_is_extracted(self):
+        paths = extract_source_paths(self.LOG_RELATIVE_PATH)
+        assert "absl/strings/str_cat.cc" in paths
+
 
 # ---------------------------------------------------------------------------
 # 12. Linker: declaration outside of class (Fix 3)
@@ -617,4 +634,3 @@ class TestLinkerDeclarationOutsideClass:
     def test_error_type(self):
         result = parse_log(self.LOG)
         assert result.error_type == "linker_error"
-

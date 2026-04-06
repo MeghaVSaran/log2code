@@ -128,7 +128,7 @@ _RE_WHAT = re.compile(
 # --- segfault / stack trace ---
 _RE_SEGFAULT = re.compile(r"Segmentation fault", re.IGNORECASE)
 _RE_STACK_FRAME = re.compile(
-    r"#(\d+)\s+(?:0x[0-9a-fA-F]+\s+in\s+)?(" + _IDENT + r")",
+    r"#\s*(\d+)\s+(?:0x[0-9a-fA-F]+\s+)?(?:in\s+)?(" + _IDENT + r")",
 )
 
 # --- file hints ---
@@ -138,7 +138,8 @@ _RE_FILE_HINT = re.compile(
 
 # --- source path in error message (absolute path to C++ file with line:col) ---
 _RE_SOURCE_PATH = re.compile(
-    r"(/\S+?\.(?:cc|cpp|h|hpp|c|cxx|hxx)):(\d+):(\d+):",
+    r"((?:[A-Za-z]:)?[\\/][^\s:]+?\.(?:cc|cpp|h|hpp|c|cxx|hxx)"
+    r"|(?:[\w.\-]+[\\/])+[\w.\-]+\.(?:cc|cpp|h|hpp|c|cxx|hxx)):(\d+)(?::(\d+))?:",
 )
 
 # Ordered list used by extract_error_type — first match wins.
@@ -205,7 +206,7 @@ class ParsedLog:
 
 # ---- public API -----------------------------------------------------------
 
-def parse_log(log_text: str) -> ParsedLog:
+def parse_log(log_text: str, repo_root: Optional[Path] = None) -> ParsedLog:
     """Parse a raw C++ error log into a structured ParsedLog.
 
     Always returns a ParsedLog even if parsing is partial.
@@ -229,6 +230,7 @@ def parse_log(log_text: str) -> ParsedLog:
         identifiers=identifiers,
         file_hints=file_hints,
         stack_frames=stack_frames,
+        source_paths=extract_source_paths(log_text, repo_root=repo_root),
     )
     logger.debug("Parsed log → type=%s, identifiers=%s", error_type, identifiers)
     return parsed
@@ -374,7 +376,7 @@ def _pick_error_message(log_text: str, error_type: str) -> str:
             _RE_NOT_DECLARED_SCOPE, _RE_DOES_NOT_NAME_TYPE,
             _RE_HAS_NOT_BEEN_DECLARED, _RE_INCOMPLETE_TYPE,
         ],
-        "segfault": [_RE_SEGFAULT],
+        "segfault": [_RE_SEGFAULT, _RE_STACK_FRAME],
         "asan_error": [
             _RE_ASAN_HEAP_OVERFLOW, _RE_ASAN_USE_AFTER_FREE,
             _RE_ASAN_STACK_OVERFLOW, _RE_ASAN_GENERIC,
@@ -465,13 +467,18 @@ def extract_source_paths(
 
     normalized: set = set()
     for raw in raw_paths:
-        parts = Path(raw).parts  # e.g. ('/', 'tmp', 'abseil', 'absl', ...)
+        parts = Path(raw).parts
         best: Optional[str] = None
+        is_rooted = bool(parts) and (
+            parts[0] in ("\\", "/") or bool(re.match(r"^[A-Za-z]:$", parts[0]))
+        )
 
         if repo_root is not None:
             resolved_root = Path(repo_root).resolve()
-            # Try successively shorter suffixes of the path
-            for i in range(1, len(parts)):
+            # Try successively shorter suffixes of the path.
+            # For rooted absolute paths skip the root token.
+            start_idx = 1 if is_rooted else 0
+            for i in range(start_idx, len(parts)):
                 suffix = Path(*parts[i:])
                 candidate = resolved_root / suffix
                 if candidate.exists():
@@ -481,8 +488,12 @@ def extract_source_paths(
                         best = rel
 
         if best is None:
-            # Fallback: use just the filename for BM25 matching
-            best = Path(raw).name
+            normalized_raw = raw.replace("\\", "/")
+            if not is_rooted and "/" in normalized_raw:
+                best = normalized_raw
+            else:
+                # Fallback: use just the filename for BM25 matching
+                best = Path(raw).name
 
         normalized.add(best)
 

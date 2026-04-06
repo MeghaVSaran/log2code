@@ -133,6 +133,7 @@ def evaluate_dataset(
         results = retriever.retrieve(
             log_embedding, parsed_log.query_text(), top_k=5,
             source_paths=source_paths,
+            parsed_log=parsed_log,
         )
         predictions = [r.file_path for r in results]
 

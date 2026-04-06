@@ -84,6 +84,13 @@ void Parser::resolveSymbol(int x) {
         chunk = parse_file(f, tmp_path, parser=cpp_parser)[0]
         assert chunk.chunk_id == "parser.cpp::Parser::resolveSymbol::L1"
 
+    def test_symbol_metadata(self, tmp_path, cpp_parser):
+        f = _write_cpp(tmp_path, "parser.cpp", self.CODE)
+        chunk = parse_file(f, tmp_path, parser=cpp_parser)[0]
+        assert chunk.symbol_name == "resolveSymbol"
+        assert chunk.class_name == "Parser"
+        assert chunk.signature.startswith("void Parser::resolveSymbol")
+
 
 # ---------------------------------------------------------------------------
 # 3. Multiple functions in one file
@@ -192,6 +199,12 @@ public:
         chunk = parse_file(f, tmp_path, parser=cpp_parser)[0]
         assert chunk.file_path == "symbol_table.hpp"
 
+    def test_inline_method_metadata(self, tmp_path, cpp_parser):
+        f = _write_cpp(tmp_path, "symbol_table.hpp", self.CODE)
+        chunk = parse_file(f, tmp_path, parser=cpp_parser)[0]
+        assert chunk.symbol_name == "insert"
+        assert chunk.class_name == "SymbolTable"
+
 
 # ---------------------------------------------------------------------------
 # 8. parse_repository — integration test
@@ -273,4 +286,3 @@ class TestFileLevelFallback:
         f = _write_cpp(tmp_path, "blank.cpp", "   \n\n  \n")
         chunks = parse_file(f, tmp_path, parser=cpp_parser)
         assert len(chunks) == 0
-

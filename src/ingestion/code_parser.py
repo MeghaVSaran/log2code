@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
 import logging
+import re
 
 import tree_sitter
 import tree_sitter_cpp
@@ -43,6 +44,10 @@ class Chunk:
     start_line: int
     end_line: int
     code_text: str
+    symbol_name: str = ""
+    class_name: str = ""
+    namespace: str = ""
+    signature: str = ""
     language: str = "cpp"
 
 
@@ -176,6 +181,8 @@ def parse_file(
                 start_line=1,
                 end_line=len(source_text.splitlines()),
                 code_text=source_text[:2000],
+                symbol_name="__file__",
+                signature=source_text.splitlines()[0].strip() if source_text.splitlines() else "",
                 language="cpp",
             ))
 
@@ -236,6 +243,8 @@ def _node_to_chunk(
         "utf-8", errors="replace"
     )
 
+    namespace, class_name, symbol_name = _build_symbol_metadata(func_name)
+
     return Chunk(
         chunk_id=f"{rel_path}::{func_name}::L{start_line}",
         file_path=rel_path,
@@ -243,6 +252,10 @@ def _node_to_chunk(
         start_line=start_line,
         end_line=end_line,
         code_text=code_text,
+        symbol_name=symbol_name,
+        class_name=class_name,
+        namespace=namespace,
+        signature=_extract_signature(code_text),
     )
 
 
@@ -310,3 +323,36 @@ def _find_child_by_type(
         if child.type == child_type:
             return child
     return None
+
+
+def _build_symbol_metadata(function_name: str) -> tuple[str, str, str]:
+    """Derive namespace/class/symbol metadata from a qualified function name."""
+    if not function_name:
+        return "", "", ""
+
+    parts = [part for part in function_name.split("::") if part]
+    symbol_name = parts[-1] if parts else function_name
+
+    if len(parts) >= 3:
+        return "::".join(parts[:-2]), parts[-2], symbol_name
+    if len(parts) == 2:
+        return "", parts[0], symbol_name
+    return "", "", symbol_name
+
+
+def _extract_signature(code_text: str) -> str:
+    """Extract a compact signature-like first line from a function body."""
+    lines = [line.strip() for line in code_text.splitlines() if line.strip()]
+    if not lines:
+        return ""
+
+    signature_parts: List[str] = []
+    for line in lines:
+        signature_parts.append(line)
+        if "{" in line or ")" in line:
+            break
+
+    signature = " ".join(signature_parts)
+    signature = signature.split("{", 1)[0].strip()
+    signature = re.sub(r"\s+", " ", signature)
+    return signature

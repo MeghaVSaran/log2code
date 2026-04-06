@@ -11,6 +11,7 @@ See docs/2_system_architecture.md §7 for spec.
 """
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import List, Dict
 import logging
 
@@ -34,6 +35,11 @@ class RetrievalResult:
     score: float           # fused score
     dense_score: float
     bm25_score: float
+    symbol_name: str = ""
+    class_name: str = ""
+    namespace: str = ""
+    signature: str = ""
+    symbol_score: float = 0.0
 
 
 class HybridRetriever:
@@ -58,6 +64,7 @@ class HybridRetriever:
         deduplicate_files: bool = True,
         mode: str = "hybrid",
         path_boost: bool = True,
+        parsed_log=None,
     ) -> List[RetrievalResult]:
         """Retrieve top-k most relevant code chunks for a log.
 
@@ -114,6 +121,9 @@ class HybridRetriever:
                 log_embedding, source_paths
             )
             fused = self._inject_source_chunks(fused, injected)
+
+        if parsed_log is not None:
+            fused = self._apply_symbol_boosts(fused, parsed_log)
 
         # Sort descending by fused score, assign ranks.
         fused.sort(key=lambda r: r.score, reverse=True)
@@ -198,10 +208,15 @@ class HybridRetriever:
                 chunk_id=cid,
                 file_path=info["file_path"],
                 function_name=info["function_name"],
+                symbol_name=info.get("symbol_name", ""),
+                class_name=info.get("class_name", ""),
+                namespace=info.get("namespace", ""),
+                signature=info.get("signature", ""),
                 start_line=info["start_line"],
                 score=fused,
                 dense_score=d_score,
                 bm25_score=b_score,
+                symbol_score=0.0,
             ))
 
         return results
@@ -249,10 +264,15 @@ class HybridRetriever:
                 chunk_id=r["chunk_id"],
                 file_path=r["file_path"],
                 function_name=r["function_name"],
+                symbol_name=r.get("symbol_name", ""),
+                class_name=r.get("class_name", ""),
+                namespace=r.get("namespace", ""),
+                signature=r.get("signature", ""),
                 start_line=r["start_line"],
                 score=SOURCE_PATH_SCORE,
                 dense_score=SOURCE_PATH_SCORE,
                 bm25_score=0.0,
+                symbol_score=0.0,
             ))
         return results
 
@@ -307,3 +327,63 @@ class HybridRetriever:
                 seen.add(r.file_path)
                 deduped.append(r)
         return deduped
+
+    def _apply_symbol_boosts(
+        self,
+        results: List[RetrievalResult],
+        parsed_log,
+    ) -> List[RetrievalResult]:
+        """Boost results whose symbol metadata matches parsed log evidence."""
+        full_identifiers = {
+            self._normalize_symbol(identifier)
+            for identifier in getattr(parsed_log, "identifiers", [])
+            if identifier
+        }
+        base_identifiers = {
+            ident.split("::")[-1]
+            for ident in full_identifiers
+            if ident
+        }
+        stack_symbols = {
+            self._normalize_symbol(frame)
+            for frame in getattr(parsed_log, "stack_frames", [])
+            if frame
+        }
+
+        if not full_identifiers and not stack_symbols:
+            return results
+
+        for result in results:
+            function_name = self._normalize_symbol(result.function_name)
+            symbol_name = self._normalize_symbol(
+                getattr(result, "symbol_name", "") or result.function_name.split("::")[-1]
+            )
+            signature = self._normalize_symbol(getattr(result, "signature", ""))
+            file_stem = self._normalize_symbol(Path(result.file_path).stem)
+            boost = 0.0
+
+            if function_name in full_identifiers:
+                boost += 0.45
+            if function_name in stack_symbols:
+                boost += 0.25
+            if symbol_name in base_identifiers:
+                boost += 0.20
+            if signature and any(identifier in signature for identifier in full_identifiers):
+                boost += 0.08
+            if file_stem and file_stem in base_identifiers:
+                boost += 0.05
+
+            result.symbol_score = min(boost, 0.75)
+            result.score = min(1.0, result.score + result.symbol_score)
+
+        return results
+
+    def _normalize_symbol(self, value: str) -> str:
+        """Lowercase and strip non-symbol prefix noise from symbol strings."""
+        value = value or ""
+        value = value.strip().lower()
+        if " in " in value:
+            value = value.split(" in ", 1)[1]
+        if "(" in value:
+            value = value.split("(", 1)[0]
+        return value.strip("`'\" ")

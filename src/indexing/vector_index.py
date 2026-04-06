@@ -83,6 +83,10 @@ class VectorIndex:
                 "chunk_id": chunk.chunk_id,
                 "file_path": chunk.file_path,
                 "function_name": chunk.function_name,
+                "symbol_name": getattr(chunk, "symbol_name", ""),
+                "class_name": getattr(chunk, "class_name", ""),
+                "namespace": getattr(chunk, "namespace", ""),
+                "signature": getattr(chunk, "signature", ""),
                 "start_line": chunk.start_line,
             })
             # Convert numpy array → list[float] if necessary.
@@ -155,6 +159,10 @@ class VectorIndex:
                 "chunk_id": chunk_id,
                 "file_path": meta["file_path"],
                 "function_name": meta["function_name"],
+                "symbol_name": meta.get("symbol_name", ""),
+                "class_name": meta.get("class_name", ""),
+                "namespace": meta.get("namespace", ""),
+                "signature": meta.get("signature", ""),
                 "start_line": meta["start_line"],
                 "score": 1.0 - dist,
             })

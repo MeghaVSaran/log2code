@@ -197,6 +197,7 @@ def query(log_path, repo, top_k, verbose, output):
             parsed_log.query_text(),
             top_k=top_k,
             source_paths=source_paths,
+            parsed_log=parsed_log,
         )
 
         if not results:
@@ -214,6 +215,7 @@ def query(log_path, repo, top_k, verbose, output):
                     "score": round(r.score, 4),
                     "dense_score": round(r.dense_score, 4),
                     "bm25_score": round(r.bm25_score, 4),
+                    "symbol_score": round(r.symbol_score, 4),
                 }
                 for r in results
             ]
@@ -228,7 +230,8 @@ def query(log_path, repo, top_k, verbose, output):
                 click.echo(f"       Function: {r.function_name}")
                 if verbose:
                     click.echo(f"       Score: {r.score:.4f} "
-                               f"(dense={r.dense_score:.4f}, bm25={r.bm25_score:.4f})")
+                               f"(dense={r.dense_score:.4f}, bm25={r.bm25_score:.4f}, "
+                               f"symbol={r.symbol_score:.4f})")
                 click.echo()
 
     except Exception as exc:

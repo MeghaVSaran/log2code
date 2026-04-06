@@ -147,9 +147,16 @@ class CodeEmbedder:
 
     def _format_chunk(self, chunk) -> str:
         """Format a Chunk for model input."""
-        return (
-            f"{chunk.function_name} {chunk.file_path}\n{chunk.code_text}"
-        )
+        header_parts = [
+            f"<function> {chunk.function_name}",
+            f"<symbol> {getattr(chunk, 'symbol_name', '')}",
+            f"<class> {getattr(chunk, 'class_name', '')}",
+            f"<namespace> {getattr(chunk, 'namespace', '')}",
+            f"<path> {chunk.file_path}",
+            f"<signature> {getattr(chunk, 'signature', '')}",
+        ]
+        header = " ".join(part for part in header_parts if not part.endswith(" "))
+        return f"{header}\n{chunk.code_text}"
 
     def _embed_mpnet(
         self, texts: List[str], batch_size: int = DEFAULT_BATCH_SIZE
@@ -218,4 +225,3 @@ if __name__ == "__main__":
     print(f"Backend: {embedder.embedding_backend}")
     print(f"Embedding shape: {vectors[0].shape}")
     print(f"First 5 values: {vectors[0][:5]}")
-

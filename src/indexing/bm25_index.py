@@ -54,7 +54,7 @@ class BM25Index:
             chunks: List of Chunk dataclass objects.
         """
         self._chunks = list(chunks)
-        corpus = [self._tokenize(c.code_text) for c in self._chunks]
+        corpus = [self._tokenize(self._build_search_text(c)) for c in self._chunks]
         self._index = BM25Okapi(corpus)
         logger.info("Built BM25 index with %d chunks.", len(self._chunks))
 
@@ -97,6 +97,10 @@ class BM25Index:
                 "chunk_id": chunk.chunk_id,
                 "file_path": chunk.file_path,
                 "function_name": chunk.function_name,
+                "symbol_name": getattr(chunk, "symbol_name", ""),
+                "class_name": getattr(chunk, "class_name", ""),
+                "namespace": getattr(chunk, "namespace", ""),
+                "signature": getattr(chunk, "signature", ""),
                 "start_line": chunk.start_line,
                 "score": score,
             })
@@ -176,3 +180,16 @@ class BM25Index:
         Useful for inspecting how identifiers and code text are split.
         """
         return self._tokenize(text)
+
+    def _build_search_text(self, chunk) -> str:
+        """Build an augmented retrieval document for a chunk."""
+        parts = [
+            getattr(chunk, "function_name", ""),
+            getattr(chunk, "symbol_name", ""),
+            getattr(chunk, "class_name", ""),
+            getattr(chunk, "namespace", ""),
+            getattr(chunk, "signature", ""),
+            getattr(chunk, "file_path", ""),
+            getattr(chunk, "code_text", ""),
+        ]
+        return "\n".join(part for part in parts if part)

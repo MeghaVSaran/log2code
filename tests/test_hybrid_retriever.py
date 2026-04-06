@@ -14,6 +14,7 @@ from src.retrieval.hybrid_retriever import (
     SOURCE_PATH_SCORE,
 )
 from src.indexing.vector_index import IndexNotFoundError
+from src.ingestion.log_parser import parse_log
 
 
 # ---------------------------------------------------------------------------
@@ -56,20 +57,26 @@ class FakeBM25Index:
 
 DENSE_RESULTS = [
     {"chunk_id": "a.cpp::foo", "file_path": "a.cpp",
-     "function_name": "foo", "start_line": 10, "score": 0.9},
+     "function_name": "foo", "symbol_name": "foo", "signature": "void foo()",
+     "start_line": 10, "score": 0.9},
     {"chunk_id": "b.cpp::bar", "file_path": "b.cpp",
-     "function_name": "bar", "start_line": 20, "score": 0.7},
+     "function_name": "bar", "symbol_name": "bar", "signature": "void bar()",
+     "start_line": 20, "score": 0.7},
     {"chunk_id": "c.cpp::baz", "file_path": "c.cpp",
-     "function_name": "baz", "start_line": 30, "score": 0.5},
+     "function_name": "baz", "symbol_name": "baz", "signature": "void baz()",
+     "start_line": 30, "score": 0.5},
 ]
 
 BM25_RESULTS = [
     {"chunk_id": "b.cpp::bar", "file_path": "b.cpp",
-     "function_name": "bar", "start_line": 20, "score": 8.0},
+     "function_name": "bar", "symbol_name": "bar", "signature": "void bar()",
+     "start_line": 20, "score": 8.0},
     {"chunk_id": "d.cpp::qux", "file_path": "d.cpp",
-     "function_name": "qux", "start_line": 40, "score": 5.0},
+     "function_name": "qux", "symbol_name": "qux", "signature": "void qux()",
+     "start_line": 40, "score": 5.0},
     {"chunk_id": "a.cpp::foo", "file_path": "a.cpp",
-     "function_name": "foo", "start_line": 10, "score": 2.0},
+     "function_name": "foo", "symbol_name": "foo", "signature": "void foo()",
+     "start_line": 10, "score": 2.0},
 ]
 
 FAKE_EMBEDDING = [0.0] * 768
@@ -455,3 +462,50 @@ class TestRetrievalModes:
         assert bar[0].dense_score > 0.0
         assert bar[0].bm25_score > 0.0
 
+
+class TestSymbolAwareBoosting:
+    """Symbol-aware ranking should help pathless symbol queries."""
+
+    SYMBOL_DENSE = [
+        {"chunk_id": "generic.cpp::helper", "file_path": "generic.cpp",
+         "function_name": "helper", "symbol_name": "helper",
+         "signature": "void helper()", "start_line": 8, "score": 0.95},
+        {"chunk_id": "parser.cpp::Parser::resolveSymbol", "file_path": "parser.cpp",
+         "function_name": "Parser::resolveSymbol", "symbol_name": "resolveSymbol",
+         "class_name": "Parser", "signature": "void Parser::resolveSymbol(Symbol& s)",
+         "start_line": 42, "score": 0.60},
+    ]
+
+    def test_exact_identifier_match_boosts_target(self):
+        retriever = HybridRetriever(
+            FakeVectorIndex(self.SYMBOL_DENSE),
+            FakeBM25Index([]),
+        )
+        parsed_log = parse_log("undefined reference to `Parser::resolveSymbol`")
+        results = retriever.retrieve(
+            FAKE_EMBEDDING,
+            parsed_log.query_text(),
+            top_k=5,
+            parsed_log=parsed_log,
+            deduplicate_files=False,
+        )
+        assert results[0].function_name == "Parser::resolveSymbol"
+        assert results[0].symbol_score > 0.0
+
+    def test_stack_frame_match_boosts_target(self):
+        retriever = HybridRetriever(
+            FakeVectorIndex(self.SYMBOL_DENSE),
+            FakeBM25Index([]),
+        )
+        parsed_log = parse_log(
+            "Segmentation fault\n"
+            "#0  0x1 in Parser::resolveSymbol (this=0x0) at parser.cpp:42\n"
+        )
+        results = retriever.retrieve(
+            FAKE_EMBEDDING,
+            parsed_log.query_text(),
+            top_k=5,
+            parsed_log=parsed_log,
+            deduplicate_files=False,
+        )
+        assert results[0].function_name == "Parser::resolveSymbol"

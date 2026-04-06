@@ -24,6 +24,7 @@ DEFAULT_TOP_K = 5
 SOURCE_PATH_SCORE = 0.95   # fixed score for directly-fetched source path chunks
 SYMBOL_CANDIDATES = 20
 HINT_CANDIDATES = 20
+PREFIX_CANDIDATES = 20
 
 
 @dataclass
@@ -120,8 +121,15 @@ class HybridRetriever:
             if hint_results:
                 bm25_results = self._merge_candidates(bm25_results, hint_results)
 
+        dense_weight, sparse_weight = self._select_fusion_weights(parsed_log)
+
         # --- fuse ----------------------------------------------------------
-        fused = self._fuse(dense_results, bm25_results)
+        fused = self._fuse(
+            dense_results,
+            bm25_results,
+            dense_weight=dense_weight,
+            sparse_weight=sparse_weight,
+        )
 
         # --- direct source-path injection ----------------------------------
         if path_boost and source_paths:
@@ -167,7 +175,11 @@ class HybridRetriever:
         return [(s - mn) / denom for s in scores]
 
     def _fuse(
-        self, dense_results: List[Dict], bm25_results: List[Dict]
+        self,
+        dense_results: List[Dict],
+        bm25_results: List[Dict],
+        dense_weight: float = DENSE_WEIGHT,
+        sparse_weight: float = SPARSE_WEIGHT,
     ) -> List[RetrievalResult]:
         """Merge and fuse dense and sparse results.
 
@@ -210,7 +222,7 @@ class HybridRetriever:
         for cid in all_ids:
             d_score = dense_map.get(cid, 0.0)
             b_score = bm25_map.get(cid, 0.0)
-            fused = DENSE_WEIGHT * d_score + SPARSE_WEIGHT * b_score
+            fused = dense_weight * d_score + sparse_weight * b_score
 
             info = meta[cid]
             results.append(RetrievalResult(
@@ -389,10 +401,51 @@ class HybridRetriever:
         if not query_text.strip():
             return []
         try:
-            return self.bm25_index.query(query_text, top_k=HINT_CANDIDATES)
+            results = self.bm25_index.query(query_text, top_k=HINT_CANDIDATES)
+            prefixes = self._derive_path_prefixes(parsed_log)
+            if prefixes and hasattr(self.bm25_index, "query_by_path_prefix"):
+                prefix_results = self.bm25_index.query_by_path_prefix(
+                    prefixes,
+                    top_k=PREFIX_CANDIDATES,
+                )
+                results = self._merge_candidates(results, prefix_results)
+            return results
         except Exception as exc:
             logger.warning("Hint candidate query failed: %s", exc)
             return []
+
+    def _select_fusion_weights(self, parsed_log) -> tuple[float, float]:
+        """Choose dense/sparse fusion weights based on query structure."""
+        dense_weight = DENSE_WEIGHT
+        sparse_weight = SPARSE_WEIGHT
+        if parsed_log is None:
+            return dense_weight, sparse_weight
+
+        error_type = getattr(parsed_log, "error_type", "unknown")
+        has_identifiers = bool(getattr(parsed_log, "identifiers", []))
+        has_stack = bool(getattr(parsed_log, "stack_frames", []))
+        has_hints = bool(getattr(parsed_log, "source_paths", [])) or bool(
+            getattr(parsed_log, "file_hints", [])
+        )
+
+        if error_type in {
+            "compiler_error",
+            "linker_error",
+            "include_error",
+            "template_error",
+            "build_system_error",
+        }:
+            sparse_weight = 0.80 if has_identifiers else 0.72
+            dense_weight = 1.0 - sparse_weight
+        elif error_type in {"segfault", "asan_error", "runtime_exception"}:
+            sparse_weight = 0.65 if (has_stack or has_identifiers) else 0.58
+            dense_weight = 1.0 - sparse_weight
+
+        if has_hints:
+            sparse_weight = min(0.90, sparse_weight + 0.05)
+            dense_weight = 1.0 - sparse_weight
+
+        return dense_weight, sparse_weight
 
     def _apply_symbol_boosts(
         self,

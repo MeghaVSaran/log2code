@@ -211,3 +211,14 @@ class TestSymbolQuery:
         idx._index = _FakeBM25()
         results = idx.query("parser", top_k=2)
         assert len(results) == 2
+
+
+class TestPathPrefixQuery:
+    """Path-prefix lookup should recover component-level candidates."""
+
+    def test_query_by_path_prefix(self):
+        idx = BM25Index()
+        idx.build(CHUNKS)
+        results = idx.query_by_path_prefix(["parser.cpp"], top_k=5)
+        assert results
+        assert results[0]["file_path"] == "parser.cpp"

@@ -54,6 +54,10 @@ class FakeBM25Index:
     def query_by_symbols(self, identifiers, top_k=20):
         return self._symbol_results[:top_k]
 
+    def query_by_path_prefix(self, prefixes, top_k=20):
+        # Reuse symbol results for simple fake-path-prefix behavior in tests.
+        return self._symbol_results[:top_k]
+
 
 # ---------------------------------------------------------------------------
 # Shared test data
@@ -572,3 +576,31 @@ class TestPathContextBoosting:
             deduplicate_files=False,
         )
         assert results[0].file_path == "absl/base/config.h"
+
+
+class TestAdaptiveFusionWeights:
+    """Hybrid fusion should adapt to linker/compiler-heavy lexical queries."""
+
+    def test_linker_query_prefers_sparse_signal(self):
+        dense = [
+            {"chunk_id": "good.cpp::target", "file_path": "good.cpp",
+             "function_name": "target", "start_line": 1, "score": 0.2},
+            {"chunk_id": "bad.cpp::noise", "file_path": "bad.cpp",
+             "function_name": "noise", "start_line": 1, "score": 0.9},
+        ]
+        bm25 = [
+            {"chunk_id": "good.cpp::target", "file_path": "good.cpp",
+             "function_name": "target", "start_line": 1, "score": 10.0},
+            {"chunk_id": "bad.cpp::noise", "file_path": "bad.cpp",
+             "function_name": "noise", "start_line": 1, "score": 1.0},
+        ]
+        retriever = HybridRetriever(FakeVectorIndex(dense), FakeBM25Index(bm25))
+        parsed = parse_log("undefined reference to `target`")
+        results = retriever.retrieve(
+            FAKE_EMBEDDING,
+            parsed.query_text(),
+            top_k=2,
+            parsed_log=parsed,
+            deduplicate_files=False,
+        )
+        assert results[0].file_path == "good.cpp"

@@ -158,6 +158,58 @@ class BM25Index:
             })
         return results
 
+    def query_by_path_prefix(
+        self,
+        prefixes: List[str],
+        top_k: int = 20,
+    ) -> List[Dict]:
+        """Return chunks whose paths share important directory prefixes."""
+        if not prefixes or not self._chunks:
+            return []
+
+        normalized_prefixes = []
+        for prefix in prefixes:
+            norm = str(prefix or "").replace("\\", "/").strip("/")
+            if norm and norm not in normalized_prefixes:
+                normalized_prefixes.append(norm)
+
+        if not normalized_prefixes:
+            return []
+
+        score_by_idx: Dict[int, float] = defaultdict(float)
+        for idx, chunk in enumerate(self._chunks):
+            file_path = str(getattr(chunk, "file_path", "")).replace("\\", "/")
+            for prefix in normalized_prefixes:
+                if file_path == prefix or file_path.startswith(f"{prefix}/"):
+                    # Longer/more specific prefixes are weighted higher.
+                    specificity = min(len(prefix.split("/")), 6)
+                    score_by_idx[idx] = max(score_by_idx[idx], 1.5 + 0.25 * specificity)
+
+        if not score_by_idx:
+            return []
+
+        ranked = sorted(
+            score_by_idx.items(),
+            key=lambda x: x[1],
+            reverse=True,
+        )[:top_k]
+
+        results: List[Dict] = []
+        for idx, score in ranked:
+            chunk = self._chunks[idx]
+            results.append({
+                "chunk_id": chunk.chunk_id,
+                "file_path": chunk.file_path,
+                "function_name": chunk.function_name,
+                "symbol_name": getattr(chunk, "symbol_name", ""),
+                "class_name": getattr(chunk, "class_name", ""),
+                "namespace": getattr(chunk, "namespace", ""),
+                "signature": getattr(chunk, "signature", ""),
+                "start_line": chunk.start_line,
+                "score": float(score),
+            })
+        return results
+
     def save(self, path: Path) -> None:
         """Persist index to disk using pickle.
 

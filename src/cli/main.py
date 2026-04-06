@@ -24,6 +24,22 @@ logger = logging.getLogger(__name__)
 DEBUGAID_DIR = ".debugaid"
 CHROMA_DIR = "chroma"
 BM25_FILE = "bm25.pkl"
+METADATA_FILE = "index_meta.json"
+
+
+def _load_index_metadata(debugaid_path: Path) -> dict:
+    """Load index metadata or return empty dict."""
+    meta_path = debugaid_path / METADATA_FILE
+    if meta_path.exists():
+        return json.load(open(meta_path, "r", encoding="utf-8"))
+    return {}
+
+
+def _save_index_metadata(debugaid_path: Path, meta: dict) -> None:
+    """Save index metadata."""
+    meta_path = debugaid_path / METADATA_FILE
+    with open(meta_path, "w", encoding="utf-8") as f:
+        json.dump(meta, f, indent=2)
 
 
 # ------------------------------------------------------------------
@@ -45,7 +61,9 @@ def cli():
 @click.option("--force-reindex", is_flag=True, default=False, help="Rebuild index even if it exists.")
 @click.option("--device", default="cpu", type=click.Choice(["cpu", "cuda"]), help="Device for embedding.")
 @click.option("--include-tests", is_flag=True, default=False, help="Include test/benchmark files in index.")
-def index(repo, force_reindex, device, include_tests):
+@click.option("--embedding-model", default="mpnet", type=click.Choice(["mpnet", "graphcodebert"]),
+              help="Embedding backend (mpnet=shared space, graphcodebert=original).")
+def index(repo, force_reindex, device, include_tests, embedding_model):
     """Index a C++ repository for log-to-code retrieval."""
     try:
         import torch
@@ -87,8 +105,8 @@ def index(repo, force_reindex, device, include_tests):
         # 2. Embed chunks.
         from src.embeddings.code_embedder import CodeEmbedder
 
-        click.echo("Embedding code chunks (this may take a while)...")
-        embedder = CodeEmbedder(device=device)
+        click.echo(f"Embedding code chunks with {embedding_model} backend...")
+        embedder = CodeEmbedder(backend=embedding_model, device=device)
         embeddings = embedder.embed_chunks(chunks)
         click.echo(f"  Embedded {len(embeddings)} chunks")
 
@@ -110,8 +128,17 @@ def index(repo, force_reindex, device, include_tests):
         bm25_index.build(chunks)
         bm25_index.save(debugaid_path / BM25_FILE)
 
+        # 5. Save index metadata.
+        _save_index_metadata(debugaid_path, {
+            "embedding_backend": embedder.embedding_backend,
+            "model_name": embedder.model_name,
+            "num_chunks": len(chunks),
+            "indexed_at": datetime.now().isoformat(),
+        })
+
         elapsed = time.time() - t_start
         click.echo(f"Indexed {len(chunks)} chunks in {elapsed:.1f} seconds")
+        click.echo(f"  Embedding backend: {embedding_model}")
 
     except Exception as exc:
         click.echo(f"Error during indexing: {exc}", err=True)

@@ -346,3 +346,112 @@ class TestSourcePathInjection:
         a_result = [r for r in results if r.file_path == "a.cpp"][0]
         # Score should be upgraded to SOURCE_PATH_SCORE
         assert a_result.score == SOURCE_PATH_SCORE
+
+
+# ---------------------------------------------------------------------------
+# 8. Retrieval mode switching
+# ---------------------------------------------------------------------------
+
+class TestRetrievalModes:
+    """Tests for the mode and path_boost parameters added for ablation."""
+
+    def test_bm25_only_mode_ignores_dense(self):
+        """In bm25 mode, dense index is not queried at all."""
+        retriever = HybridRetriever(
+            FakeVectorIndex(DENSE_RESULTS),
+            FakeBM25Index(BM25_RESULTS),
+        )
+        results = retriever.retrieve(
+            FAKE_EMBEDDING, "test", top_k=5,
+            mode="bm25",
+        )
+        # All results should have dense_score = 0
+        for r in results:
+            assert r.dense_score == 0.0
+        # BM25 results should be present
+        assert len(results) > 0
+
+    def test_dense_only_mode_ignores_bm25(self):
+        """In dense mode, BM25 is not queried."""
+        retriever = HybridRetriever(
+            FakeVectorIndex(DENSE_RESULTS),
+            FakeBM25Index(BM25_RESULTS),
+        )
+        results = retriever.retrieve(
+            FAKE_EMBEDDING, "test", top_k=5,
+            mode="dense",
+        )
+        # All results should have bm25_score = 0
+        for r in results:
+            assert r.bm25_score == 0.0
+        assert len(results) > 0
+
+    def test_path_boost_false_suppresses_injection(self):
+        """When path_boost=False, source_paths are ignored."""
+        filtered = [
+            {"chunk_id": "x.cpp::xfn", "file_path": "x.cpp",
+             "function_name": "xfn", "start_line": 1, "score": 0.99},
+        ]
+        retriever = HybridRetriever(
+            FakeVectorIndex(DENSE_RESULTS, filtered_results=filtered),
+            FakeBM25Index(BM25_RESULTS),
+        )
+        results = retriever.retrieve(
+            FAKE_EMBEDDING, "test", top_k=5,
+            source_paths=["x.cpp"],
+            path_boost=False,
+        )
+        # x.cpp should NOT be in results since path boost is disabled
+        file_paths = [r.file_path for r in results]
+        assert "x.cpp" not in file_paths
+
+    def test_path_boost_true_injects(self):
+        """When path_boost=True, source_paths chunks are injected."""
+        filtered = [
+            {"chunk_id": "x.cpp::xfn", "file_path": "x.cpp",
+             "function_name": "xfn", "start_line": 1, "score": 0.99},
+        ]
+        retriever = HybridRetriever(
+            FakeVectorIndex(DENSE_RESULTS, filtered_results=filtered),
+            FakeBM25Index(BM25_RESULTS),
+        )
+        results = retriever.retrieve(
+            FAKE_EMBEDDING, "test", top_k=5,
+            source_paths=["x.cpp"],
+            path_boost=True,
+        )
+        file_paths = [r.file_path for r in results]
+        assert "x.cpp" in file_paths
+
+    def test_bm25_with_path_boost(self):
+        """BM25 mode with path_boost enabled also injects source paths."""
+        filtered = [
+            {"chunk_id": "x.cpp::xfn", "file_path": "x.cpp",
+             "function_name": "xfn", "start_line": 1, "score": 0.99},
+        ]
+        retriever = HybridRetriever(
+            FakeVectorIndex([], filtered_results=filtered),
+            FakeBM25Index(BM25_RESULTS),
+        )
+        results = retriever.retrieve(
+            FAKE_EMBEDDING, "test", top_k=5,
+            source_paths=["x.cpp"],
+            mode="bm25",
+            path_boost=True,
+        )
+        file_paths = [r.file_path for r in results]
+        assert "x.cpp" in file_paths
+
+    def test_default_mode_is_hybrid(self):
+        """Without explicit mode, retriever uses hybrid (both indices)."""
+        retriever = HybridRetriever(
+            FakeVectorIndex(DENSE_RESULTS),
+            FakeBM25Index(BM25_RESULTS),
+        )
+        results = retriever.retrieve(FAKE_EMBEDDING, "test", top_k=5)
+        # b.cpp::bar appears in both indices so should have both scores > 0
+        bar = [r for r in results if r.function_name == "bar"]
+        assert len(bar) == 1
+        assert bar[0].dense_score > 0.0
+        assert bar[0].bm25_score > 0.0
+

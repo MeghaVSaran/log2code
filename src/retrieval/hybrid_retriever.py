@@ -56,6 +56,8 @@ class HybridRetriever:
         top_k: int = DEFAULT_TOP_K,
         source_paths: List[str] = None,
         deduplicate_files: bool = True,
+        mode: str = "hybrid",
+        path_boost: bool = True,
     ) -> List[RetrievalResult]:
         """Retrieve top-k most relevant code chunks for a log.
 
@@ -63,11 +65,10 @@ class HybridRetriever:
         normalises their scores to [0, 1], and fuses them with weights
         ``0.5 * dense + 0.5 * bm25``.
 
-        When ``source_paths`` are provided, chunks from those files are
-        fetched directly from ChromaDB via metadata filtering and
-        injected into the candidate pool with a high fixed score
-        (0.95).  This guarantees that when the error log mentions a
-        file path, that file always appears in the results.
+        When ``source_paths`` are provided and ``path_boost`` is True,
+        chunks from those files are fetched directly from ChromaDB via
+        metadata filtering and injected into the candidate pool with a
+        high fixed score (0.95).
 
         Falls back to a single index if the other is unavailable.
 
@@ -76,35 +77,39 @@ class HybridRetriever:
             log_text: Raw query text for BM25 (error_message + identifiers).
             top_k: Number of results to return.
             source_paths: Optional list of normalized source file paths
-                extracted from the error log.  Chunks from these files
-                are fetched directly and injected into the candidate pool.
+                extracted from the error log.
             deduplicate_files: If True, collapse results so that each
-                unique ``file_path`` appears at most once (keeping the
-                highest-scoring function per file).
+                unique ``file_path`` appears at most once.
+            mode: Retrieval mode — ``"hybrid"`` (default), ``"bm25"``,
+                or ``"dense"``.  Controls which indices are queried.
+            path_boost: If True (default), inject directly-fetched
+                source path chunks.  Set to False to disable.
 
         Returns:
             List of RetrievalResult sorted by descending fused score.
         """
         # --- dense results -------------------------------------------------
         dense_results: List[Dict] = []
-        try:
-            dense_results = self.vector_index.query(
-                log_embedding, top_k=DEFAULT_CANDIDATES
-            )
-        except Exception as exc:
-            # IndexNotFoundError or any other failure → fall back to BM25.
-            logger.warning("Dense index failed, falling back to BM25: %s", exc)
+        if mode in ("hybrid", "dense"):
+            try:
+                dense_results = self.vector_index.query(
+                    log_embedding, top_k=DEFAULT_CANDIDATES
+                )
+            except Exception as exc:
+                logger.warning("Dense index failed: %s", exc)
 
         # --- sparse results ------------------------------------------------
-        bm25_results: List[Dict] = self.bm25_index.query(
-            log_text, top_k=DEFAULT_CANDIDATES
-        )
+        bm25_results: List[Dict] = []
+        if mode in ("hybrid", "bm25"):
+            bm25_results = self.bm25_index.query(
+                log_text, top_k=DEFAULT_CANDIDATES
+            )
 
         # --- fuse ----------------------------------------------------------
         fused = self._fuse(dense_results, bm25_results)
 
         # --- direct source-path injection ----------------------------------
-        if source_paths:
+        if path_boost and source_paths:
             injected = self._fetch_source_path_chunks(
                 log_embedding, source_paths
             )

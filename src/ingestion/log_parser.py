@@ -28,6 +28,18 @@ ERROR_TYPES = {
     "unknown",
 }
 
+_TEXT_NORMALIZATION_MAP = {
+    "\u2018": "'",   # left single quote
+    "\u2019": "'",   # right single quote
+    "\u201c": '"',   # left double quote
+    "\u201d": '"',   # right double quote
+    "â€˜": "'",       # mojibake left single quote
+    "â€™": "'",       # mojibake right single quote
+    "â€œ": '"',       # mojibake left double quote
+    "â€�": '"',       # mojibake right double quote
+    "\u00a0": " ",   # non-breaking space
+}
+
 # ---------------------------------------------------------------------------
 # Compiled regex patterns — grouped by error category.
 # Order within _ERROR_PATTERNS matters: first match wins for error_type.
@@ -226,11 +238,12 @@ def parse_log(log_text: str, repo_root: Optional[Path] = None) -> ParsedLog:
     Returns:
         ParsedLog with all available fields populated.
     """
-    error_type = extract_error_type(log_text)
-    identifiers = extract_identifiers(log_text)
-    file_hints = extract_file_hints(log_text)
-    error_message = _pick_error_message(log_text, error_type)
-    stack_frames = _extract_stack_frames(log_text)
+    normalized_log = _normalize_log_text(log_text)
+    error_type = extract_error_type(normalized_log)
+    identifiers = extract_identifiers(normalized_log)
+    file_hints = extract_file_hints(normalized_log)
+    error_message = _pick_error_message(normalized_log, error_type)
+    stack_frames = _extract_stack_frames(normalized_log)
 
     parsed = ParsedLog(
         raw_log=log_text,
@@ -239,7 +252,7 @@ def parse_log(log_text: str, repo_root: Optional[Path] = None) -> ParsedLog:
         identifiers=identifiers,
         file_hints=file_hints,
         stack_frames=stack_frames,
-        source_paths=extract_source_paths(log_text, repo_root=repo_root),
+        source_paths=extract_source_paths(normalized_log, repo_root=repo_root),
     )
     logger.debug("Parsed log → type=%s, identifiers=%s", error_type, identifiers)
     return parsed
@@ -259,6 +272,7 @@ def extract_error_type(log_text: str) -> str:
                 template_error, segfault, asan_error,
                 build_system_error, runtime_exception, unknown.
     """
+    log_text = _normalize_log_text(log_text)
     for error_type, pattern in _ERROR_PATTERNS:
         if pattern.search(log_text):
             return error_type
@@ -284,6 +298,7 @@ def extract_identifiers(log_text: str) -> List[str]:
     Returns:
         List of unique identifier strings found (order-preserved).
     """
+    log_text = _normalize_log_text(log_text)
     seen: set = set()
     result: List[str] = []
 
@@ -338,6 +353,7 @@ def extract_file_hints(log_text: str) -> List[str]:
     Returns:
         List of unique filename strings (e.g. ['resolve.cpp', 'symbol_table.h']).
     """
+    log_text = _normalize_log_text(log_text)
     seen: set = set()
     result: List[str] = []
 
@@ -470,6 +486,7 @@ def extract_source_paths(
     Returns:
         Sorted list of unique normalized relative paths.
     """
+    log_text = _normalize_log_text(log_text)
     raw_paths: set = set()
     for match in _RE_SOURCE_PATH.finditer(log_text):
         raw_paths.add(match.group(1))
@@ -539,3 +556,11 @@ def extract_source_paths(
         normalized.add(best)
 
     return sorted(normalized)
+
+
+def _normalize_log_text(log_text: str) -> str:
+    """Normalize punctuation/quotes so regex extraction is robust."""
+    normalized = log_text or ""
+    for src, dst in _TEXT_NORMALIZATION_MAP.items():
+        normalized = normalized.replace(src, dst)
+    return normalized

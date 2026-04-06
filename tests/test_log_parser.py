@@ -551,6 +551,20 @@ class TestBogusIdentifierStripping:
         assert "__BOGUS_StrAppend" not in result.identifiers
 
 
+class TestMojibakeQuotesNormalization:
+    """Parser should extract identifiers even with mojibake quote chars."""
+
+    LOG = (
+        "/tmp/abseil/absl/log/internal/log_format.cc:174:30: "
+        "error: â€˜PrefixFormatâ€™ has not been declared\n"
+    )
+
+    def test_identifier_extracted_despite_mojibake_quotes(self):
+        result = parse_log(self.LOG)
+        assert result.error_type == "compiler_error"
+        assert "PrefixFormat" in result.identifiers
+
+
 # ---------------------------------------------------------------------------
 # 11. Source path extraction (Fix 4)
 # ---------------------------------------------------------------------------

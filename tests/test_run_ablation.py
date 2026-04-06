@@ -72,6 +72,7 @@ def test_to_strict_pathless_parsed_strips_path_hints():
 
     assert strict.source_paths == []
     assert all("/" not in hint and "\\" not in hint for hint in strict.file_hints)
+    assert "str_cat.cc" in strict.file_hints
     assert "/tmp/abseil/" not in strict.error_message
 
 

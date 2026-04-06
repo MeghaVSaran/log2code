@@ -97,18 +97,36 @@ def _strip_path_tokens(text: str) -> str:
     for token in text.split():
         core = token.strip("`'\"()[]{}:,;")
         if _looks_like_path_hint(core):
+            basename = _basename_from_path_hint(core)
+            if basename:
+                kept_tokens.append(basename)
             continue
         kept_tokens.append(token)
     return " ".join(kept_tokens).strip()
 
 
+def _basename_from_path_hint(value: str) -> str:
+    """Convert a path-like hint into a filename token."""
+    if not value:
+        return ""
+    candidate = value.strip().strip("`'\"()[]{}:,;")
+    candidate = candidate.replace("\\", "/")
+    candidate = re.sub(r":\d+(?::\d+)?$", "", candidate)
+    candidate = re.sub(r"(?:\.pic)?\.o$", "", candidate)
+    name = Path(candidate).name
+    return name if name else ""
+
+
 def _to_strict_pathless_parsed(parsed):
     """Clone ParsedLog with all path-like hints removed."""
-    cleaned_hints = [
-        hint
-        for hint in getattr(parsed, "file_hints", [])
-        if not _looks_like_path_hint(hint)
-    ]
+    cleaned_hints: List[str] = []
+    for hint in list(getattr(parsed, "file_hints", [])) + list(getattr(parsed, "source_paths", [])):
+        if _looks_like_path_hint(hint):
+            basename = _basename_from_path_hint(hint)
+            if basename and basename not in cleaned_hints:
+                cleaned_hints.append(basename)
+        elif hint and hint not in cleaned_hints:
+            cleaned_hints.append(hint)
     return replace(
         parsed,
         raw_log=_strip_path_tokens(getattr(parsed, "raw_log", "")),
@@ -574,17 +592,28 @@ def main():
             print("No samples left after --repo-filter; exiting.", file=sys.stderr)
             sys.exit(1)
 
-    else:
-        in_repo = 0
-        for item in dataset:
-            gt = item.get("relevant_files", [])
-            if gt and all((repo_path / rel).exists() for rel in gt):
-                in_repo += 1
-        if in_repo < len(dataset):
-            print(
-                f"Warning: only {in_repo}/{len(dataset)} samples have ground-truth files "
-                f"inside indexed repo '{repo_path.name}'. Consider --repo-filter."
-            )
+    in_repo = 0
+    missing_paths: Counter = Counter()
+    for item in dataset:
+        gt = item.get("relevant_files", [])
+        missing = [rel for rel in gt if not (repo_path / rel).exists()]
+        if not missing:
+            in_repo += 1
+        else:
+            for rel in missing:
+                missing_paths[rel] += 1
+
+    if in_repo < len(dataset):
+        print(
+            f"Warning: only {in_repo}/{len(dataset)} samples have all ground-truth files "
+            f"inside indexed repo '{repo_path.name}'."
+        )
+        top_missing = ", ".join(
+            f"{path} ({count}x)"
+            for path, count in missing_paths.most_common(5)
+        )
+        if top_missing:
+            print(f"Top missing ground-truth paths: {top_missing}")
 
     # Load indices
     from src.indexing.vector_index import VectorIndex

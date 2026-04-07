@@ -66,10 +66,17 @@ _RE_TEMPLATE_ERROR = re.compile(
 
 # --- linker error ---
 _RE_UNDEF_REF = re.compile(
-    r"undefined reference to\s+[`'\"]?(" + _IDENT + r")[`'\"]?",
+    r"undefined reference to\s+[`'\"]?(?!(?:typeinfo|vtable)\b)(" + _IDENT + r")[`'\"]?",
+)
+_RE_UNDEF_REF_TYPEINFO = re.compile(
+    r"undefined reference to\s+[`'\"]?(?:typeinfo|vtable)\s+for\s+(" + _IDENT + r")[`'\"]?",
 )
 _RE_MULTI_DEF = re.compile(
     r"multiple definition of\s+[`'\"]?(" + _IDENT + r")[`'\"]?",
+)
+_RE_INLINE_USED_NOT_DEFINED = re.compile(
+    r"inline function\s+[`'\"]?([^`'\"]+)[`'\"]?\s+used but never defined",
+    re.IGNORECASE,
 )
 
 # --- compiler error ---
@@ -99,6 +106,13 @@ _RE_DECL_OUTSIDE_CLASS = re.compile(
 )
 _RE_INCOMPLETE_TYPE = re.compile(
     r"invalid use of incomplete type\s+[`'\"]?(.+?)[`'\"]?",
+)
+_RE_NO_DECLARATION_MATCHES = re.compile(
+    r"no declaration matches\s+[`'\"]?([^\n]+)",
+)
+_RE_FORBIDS_DECLARATION = re.compile(
+    r"forbids declaration of\s+[`'\"]?(" + _IDENT + r")[`'\"]?\s+with no type",
+    re.IGNORECASE,
 )
 
 # --- asan_error ---
@@ -175,8 +189,10 @@ _ERROR_PATTERNS = [
     ("build_system_error", _RE_MAKE_NO_RULE),
     ("build_system_error", _RE_CMAKE_ERROR),
     ("linker_error", _RE_UNDEF_REF),
+    ("linker_error", _RE_UNDEF_REF_TYPEINFO),
     ("linker_error", _RE_MULTI_DEF),
     ("linker_error", _RE_DECL_OUTSIDE_CLASS),
+    ("linker_error", _RE_INLINE_USED_NOT_DEFINED),
     ("compiler_error", _RE_UNDECLARED_IDENT),
     ("compiler_error", _RE_NO_MATCHING_FN),
     ("compiler_error", _RE_NOT_MEMBER_OF),
@@ -185,6 +201,8 @@ _ERROR_PATTERNS = [
     ("compiler_error", _RE_DOES_NOT_NAME_TYPE),
     ("compiler_error", _RE_HAS_NOT_BEEN_DECLARED),
     ("compiler_error", _RE_INCOMPLETE_TYPE),
+    ("compiler_error", _RE_NO_DECLARATION_MATCHES),
+    ("compiler_error", _RE_FORBIDS_DECLARATION),
     ("runtime_exception", _RE_TERMINATE_THROW),
     ("runtime_exception", _RE_STD_EXCEPTION),
     ("segfault", _RE_SEGFAULT),
@@ -305,7 +323,10 @@ def extract_identifiers(log_text: str) -> List[str]:
     # All identifier-bearing patterns with their compiled regexes
     ident_patterns = [
         _RE_UNDEF_REF,
+        _RE_UNDEF_REF_TYPEINFO,
         _RE_MULTI_DEF,
+        _RE_DECL_OUTSIDE_CLASS,
+        _RE_INLINE_USED_NOT_DEFINED,
         _RE_UNDECLARED_IDENT,
         _RE_NO_MATCHING_FN,
         _RE_NOT_MEMBER_OF,
@@ -313,6 +334,8 @@ def extract_identifiers(log_text: str) -> List[str]:
         _RE_NOT_DECLARED_SCOPE,
         _RE_DOES_NOT_NAME_TYPE,
         _RE_HAS_NOT_BEEN_DECLARED,
+        _RE_NO_DECLARATION_MATCHES,
+        _RE_FORBIDS_DECLARATION,
         _RE_STACK_FRAME,
         _RE_TERMINATE_THROW,
         _RE_STD_EXCEPTION,
@@ -394,12 +417,19 @@ def _pick_error_message(log_text: str, error_type: str) -> str:
     type_to_patterns = {
         "include_error": [_RE_INCLUDE_ERROR],
         "template_error": [_RE_TEMPLATE_ERROR],
-        "linker_error": [_RE_UNDEF_REF, _RE_MULTI_DEF, _RE_DECL_OUTSIDE_CLASS],
+        "linker_error": [
+            _RE_UNDEF_REF,
+            _RE_UNDEF_REF_TYPEINFO,
+            _RE_MULTI_DEF,
+            _RE_DECL_OUTSIDE_CLASS,
+            _RE_INLINE_USED_NOT_DEFINED,
+        ],
         "compiler_error": [
             _RE_UNDECLARED_IDENT, _RE_NO_MATCHING_FN,
             _RE_NOT_MEMBER_OF, _RE_NO_MEMBER_NAMED,
             _RE_NOT_DECLARED_SCOPE, _RE_DOES_NOT_NAME_TYPE,
             _RE_HAS_NOT_BEEN_DECLARED, _RE_INCOMPLETE_TYPE,
+            _RE_NO_DECLARATION_MATCHES, _RE_FORBIDS_DECLARATION,
         ],
         "segfault": [_RE_SEGFAULT, _RE_STACK_FRAME],
         "asan_error": [
@@ -450,9 +480,34 @@ def _clean_identifier(ident: str) -> str:
     Strips the synthetic ``__BOGUS_`` prefix used by
     ``generate_synthetic_errors.py`` to recover the real symbol name.
     """
-    if ident.startswith("__BOGUS_"):
-        return ident[len("__BOGUS_"):]
-    return ident
+    ident = (ident or "").strip().strip("`'\"")
+    if not ident:
+        return ""
+
+    # Linker declaration/warning lines may include return types + signatures.
+    if "(" in ident and ("::" in ident or " " in ident):
+        match = re.search(r"([A-Za-z_~][A-Za-z0-9_:<>~*]*)\s*\(", ident)
+        if match:
+            candidate = match.group(1).strip()
+            if "::" in candidate or len(candidate) >= 2:
+                ident = candidate
+
+    # Remove typeinfo/vtable prefix noise and qualifiers.
+    ident = re.sub(r"^(?:typeinfo|vtable)\s+for\s+", "", ident).strip()
+    ident = re.sub(
+        r"\b(?:const|volatile|static|inline|virtual|explicit|friend|extern|"
+        r"mutable|constexpr|typename|class|struct|enum|unsigned|signed|long|"
+        r"short|bool|int|void)\b",
+        " ",
+        ident,
+    )
+    ident = re.sub(r"\s+", " ", ident).strip()
+    if " " in ident:
+        ident = ident.split(" ")[-1]
+
+    # Synthetic corruption marker appears in generated samples.
+    ident = ident.replace("__BOGUS_", "")
+    return ident.strip("`'\" ")
 
 
 def extract_source_paths(

@@ -58,6 +58,10 @@ class FakeBM25Index:
         # Reuse symbol results for simple fake-path-prefix behavior in tests.
         return self._symbol_results[:top_k]
 
+    def query_by_file_hints(self, hints, top_k=20):
+        # Reuse symbol results for simple fake-file-hint behavior in tests.
+        return self._symbol_results[:top_k]
+
 
 # ---------------------------------------------------------------------------
 # Shared test data
@@ -577,6 +581,30 @@ class TestPathContextBoosting:
         )
         assert results[0].file_path == "absl/base/config.h"
 
+    def test_basename_file_hint_can_surface_candidate(self):
+        dense = [
+            {"chunk_id": "x.cpp::x", "file_path": "noise.cpp",
+             "function_name": "x", "start_line": 1, "score": 0.7},
+        ]
+        hinted = [
+            {"chunk_id": "target.cpp::y", "file_path": "target.cpp",
+             "function_name": "y", "start_line": 1, "score": 3.0},
+        ]
+        retriever = HybridRetriever(
+            FakeVectorIndex(dense),
+            FakeBM25Index(results=[], symbol_results=hinted),
+        )
+        parsed = parse_log("error in target.cpp")
+        parsed.file_hints = ["target.cpp"]
+        results = retriever.retrieve(
+            FAKE_EMBEDDING,
+            parsed.query_text(),
+            top_k=2,
+            parsed_log=parsed,
+            deduplicate_files=False,
+        )
+        assert any(r.file_path == "target.cpp" for r in results)
+
 
 class TestAdaptiveFusionWeights:
     """Hybrid fusion should adapt to linker/compiler-heavy lexical queries."""
@@ -732,3 +760,37 @@ class TestAdaptiveFusionWeights:
             strict_pathless=True,
         )
         assert anchored[0].score > 0.90
+
+    def test_strict_top1_guard_promotes_strong_bm25_candidate(self):
+        retriever = HybridRetriever(FakeVectorIndex([]), FakeBM25Index([]))
+        parsed = parse_log("undefined reference to `target`")
+        rows = [
+            RetrievalResult(
+                rank=1,
+                chunk_id="wrong.cpp::noise",
+                file_path="wrong.cpp",
+                function_name="noise",
+                start_line=1,
+                score=0.92,
+                dense_score=0.92,
+                bm25_score=0.10,
+                dense_raw_score=0.92,
+                bm25_raw_score=1.0,
+                symbol_score=0.0,
+            ),
+            RetrievalResult(
+                rank=2,
+                chunk_id="good.cpp::target",
+                file_path="good.cpp",
+                function_name="target",
+                start_line=1,
+                score=0.91,
+                dense_score=0.20,
+                bm25_score=1.00,
+                dense_raw_score=0.20,
+                bm25_raw_score=10.0,
+                symbol_score=0.40,
+            ),
+        ]
+        guarded = retriever._apply_strict_pathless_top1_guard(rows, parsed_log=parsed)
+        assert guarded[0].chunk_id == "good.cpp::target"

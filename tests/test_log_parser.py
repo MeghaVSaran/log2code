@@ -470,6 +470,14 @@ class TestExpandedCompilerPatterns:
     LOG_INCOMPLETE_TYPE = (
         "foo.cpp:12:3: error: invalid use of incomplete type 'struct Foo'\n"
     )
+    LOG_NO_DECLARATION_MATCHES = (
+        "foo.cpp:29:6: error: no declaration matches "
+        "'bool absl::CommandLineFlag::__BOGUS_ParseFrom(std::string_view, std::string*)'\n"
+    )
+    LOG_FORBIDS_DECLARATION = (
+        "bar.cc:35:63: error: ISO C++ forbids declaration of '__BOGUS_Utf8ForCodePoint' "
+        "with no type [-fpermissive]\n"
+    )
 
     def test_not_member_of_type(self):
         result = parse_log(self.LOG_NOT_MEMBER_OF)
@@ -521,6 +529,16 @@ class TestExpandedCompilerPatterns:
         """The error message should be the line containing the pattern."""
         result = parse_log(self.LOG_NOT_MEMBER_OF)
         assert "is not a member of" in result.error_message
+
+    def test_no_declaration_matches_identifier(self):
+        result = parse_log(self.LOG_NO_DECLARATION_MATCHES)
+        assert result.error_type == "compiler_error"
+        assert "absl::CommandLineFlag::ParseFrom" in result.identifiers
+
+    def test_forbids_declaration_identifier(self):
+        result = parse_log(self.LOG_FORBIDS_DECLARATION)
+        assert result.error_type == "compiler_error"
+        assert "Utf8ForCodePoint" in result.identifiers
 
 
 # ---------------------------------------------------------------------------
@@ -666,3 +684,29 @@ class TestLinkerDeclarationOutsideClass:
     def test_error_type(self):
         result = parse_log(self.LOG)
         assert result.error_type == "linker_error"
+
+    def test_identifier_extracted(self):
+        result = parse_log(self.LOG)
+        assert "Foo::bar" in result.identifiers
+
+
+class TestLinkerExtendedPatterns:
+    """Extra linker patterns should extract useful symbols."""
+
+    LOG_TYPEINFO = (
+        "/usr/bin/ld: undefined reference to `typeinfo for absl::CommandLineFlag'\n"
+    )
+    LOG_INLINE_UNDEFINED = (
+        "time.cc:54:40: warning: inline function "
+        "'absl::{anonymous}::unix_epoch()' used but never defined\n"
+    )
+
+    def test_typeinfo_reference_extracts_symbol(self):
+        result = parse_log(self.LOG_TYPEINFO)
+        assert result.error_type == "linker_error"
+        assert "absl::CommandLineFlag" in result.identifiers
+
+    def test_inline_used_not_defined_classifies_linker(self):
+        result = parse_log(self.LOG_INLINE_UNDEFINED)
+        assert result.error_type == "linker_error"
+        assert any(ident.endswith("unix_epoch") for ident in result.identifiers)

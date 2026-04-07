@@ -222,3 +222,21 @@ class TestPathPrefixQuery:
         results = idx.query_by_path_prefix(["parser.cpp"], top_k=5)
         assert results
         assert results[0]["file_path"] == "parser.cpp"
+
+
+class TestFileHintQuery:
+    """Filename hints should map to chunks even without directory paths."""
+
+    def test_query_by_file_hints_basename(self):
+        idx = BM25Index()
+        idx.build(CHUNKS)
+        results = idx.query_by_file_hints(["parser.cpp"], top_k=5)
+        assert results
+        assert results[0]["file_path"] == "parser.cpp"
+
+    def test_query_by_file_hints_stem(self):
+        idx = BM25Index()
+        idx.build(CHUNKS)
+        results = idx.query_by_file_hints(["parser"], top_k=5)
+        assert results
+        assert results[0]["file_path"] == "parser.cpp"

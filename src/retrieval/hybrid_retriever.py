@@ -25,6 +25,7 @@ SOURCE_PATH_SCORE = 0.95   # fixed score for directly-fetched source path chunks
 SYMBOL_CANDIDATES = 20
 HINT_CANDIDATES = 20
 PREFIX_CANDIDATES = 20
+FILE_HINT_CANDIDATES = 20
 
 
 @dataclass
@@ -166,6 +167,12 @@ class HybridRetriever:
         # --- file-path deduplication ---------------------------------------
         if deduplicate_files:
             fused = self._deduplicate_files(fused)
+
+        if mode == "hybrid" and strict_pathless:
+            fused = self._apply_strict_pathless_top1_guard(
+                fused,
+                parsed_log=parsed_log,
+            )
 
         for i, r in enumerate(fused):
             r.rank = i + 1
@@ -424,15 +431,22 @@ class HybridRetriever:
         hints = list(getattr(parsed_log, "source_paths", [])) + list(
             getattr(parsed_log, "file_hints", [])
         )
-        # Keep only path-like hints with at least one slash.
-        hint_terms = [h for h in hints if isinstance(h, str) and ("/" in h or "\\" in h)]
+        if not hints:
+            return []
+
+        hint_terms = [h for h in hints if isinstance(h, str) and h.strip()]
         if not hint_terms:
             return []
-        query_text = " ".join(hint_terms)
-        if not query_text.strip():
-            return []
+
+        path_terms = [h for h in hint_terms if ("/" in h or "\\" in h)]
+        basename_terms = [h for h in hint_terms if h not in path_terms]
+
+        results: List[Dict] = []
         try:
-            results = self.bm25_index.query(query_text, top_k=HINT_CANDIDATES)
+            if path_terms:
+                query_text = " ".join(path_terms)
+                if query_text.strip():
+                    results = self.bm25_index.query(query_text, top_k=HINT_CANDIDATES)
             prefixes = self._derive_path_prefixes(parsed_log)
             if prefixes and hasattr(self.bm25_index, "query_by_path_prefix"):
                 prefix_results = self.bm25_index.query_by_path_prefix(
@@ -440,6 +454,12 @@ class HybridRetriever:
                     top_k=PREFIX_CANDIDATES,
                 )
                 results = self._merge_candidates(results, prefix_results)
+            if basename_terms and hasattr(self.bm25_index, "query_by_file_hints"):
+                file_results = self.bm25_index.query_by_file_hints(
+                    basename_terms,
+                    top_k=FILE_HINT_CANDIDATES,
+                )
+                results = self._merge_candidates(results, file_results)
             return results
         except Exception as exc:
             logger.warning("Hint candidate query failed: %s", exc)
@@ -525,7 +545,13 @@ class HybridRetriever:
             )
             signature = self._normalize_symbol(getattr(result, "signature", ""))
             file_stem = self._normalize_symbol(Path(result.file_path).stem)
+            file_base = Path(result.file_path).name.lower()
             boost = 0.0
+            file_hints = {
+                str(h).replace("\\", "/").rsplit("/", 1)[-1].lower()
+                for h in getattr(parsed_log, "file_hints", [])
+                if isinstance(h, str) and h.strip()
+            }
 
             error_type = getattr(parsed_log, "error_type", "unknown")
             strict_symbol_mode = strict_pathless and error_type in {"linker_error", "segfault", "asan_error"}
@@ -541,6 +567,8 @@ class HybridRetriever:
                     boost += 0.12
                 if file_stem and file_stem in base_identifiers:
                     boost += 0.03
+                if file_hints and file_base in file_hints:
+                    boost += 0.18
                 max_boost = 0.90
             else:
                 if function_name in full_identifiers:
@@ -553,6 +581,8 @@ class HybridRetriever:
                     boost += 0.08
                 if file_stem and file_stem in base_identifiers:
                     boost += 0.05
+                if file_hints and file_base in file_hints:
+                    boost += 0.10
                 if path_prefixes and any(
                     result.file_path == pref or result.file_path.startswith(f"{pref}/")
                     for pref in path_prefixes
@@ -711,3 +741,52 @@ class HybridRetriever:
         if error_type in {"linker_error", "compiler_error", "include_error", "template_error"}:
             return 0.58
         return 0.62
+
+    def _apply_strict_pathless_top1_guard(
+        self,
+        results: List[RetrievalResult],
+        parsed_log,
+    ) -> List[RetrievalResult]:
+        """In strict pathless mode, protect top-1 against dense-only drift."""
+        if not results or parsed_log is None:
+            return results
+
+        confidence = self._compute_lexical_confidence(
+            results,
+            parsed_log=parsed_log,
+            strict_pathless=True,
+        )
+        threshold = self._lexical_confidence_threshold(
+            parsed_log,
+            strict_pathless=True,
+        )
+        if confidence < (threshold + 0.08):
+            return results
+
+        bm25_best = max(
+            results,
+            key=lambda r: (r.bm25_raw_score, r.bm25_score, r.symbol_score),
+        )
+        current_best = max(
+            results,
+            key=lambda r: (r.score, r.bm25_score, r.symbol_score, r.dense_score),
+        )
+        if bm25_best.chunk_id == current_best.chunk_id:
+            return results
+        if bm25_best.bm25_score <= 0.0 and bm25_best.bm25_raw_score <= 0.0:
+            return results
+
+        better_lexically = (
+            bm25_best.bm25_score >= current_best.bm25_score + 0.10
+            or bm25_best.symbol_score >= current_best.symbol_score + 0.15
+            or bm25_best.bm25_raw_score > current_best.bm25_raw_score
+        )
+        if not better_lexically:
+            return results
+
+        bm25_best.score = max(bm25_best.score, current_best.score + 1e-4)
+        results.sort(
+            key=lambda r: (r.score, r.bm25_score, r.symbol_score, r.dense_score),
+            reverse=True,
+        )
+        return results

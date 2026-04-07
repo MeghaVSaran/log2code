@@ -45,6 +45,7 @@ class BM25Index:
         self._index: Optional[BM25Okapi] = None
         self._chunks: List = []   # parallel list to BM25 corpus
         self._symbol_lookup: Dict[str, set[int]] = {}
+        self._file_lookup: Dict[str, set[int]] = {}
 
     def build(self, chunks: List) -> None:
         """Build BM25 index from a list of Chunk objects.
@@ -59,6 +60,7 @@ class BM25Index:
         corpus = [self._tokenize(self._build_search_text(c)) for c in self._chunks]
         self._index = BM25Okapi(corpus)
         self._symbol_lookup = self._build_symbol_lookup(self._chunks)
+        self._file_lookup = self._build_file_lookup(self._chunks)
         logger.info("Built BM25 index with %d chunks.", len(self._chunks))
 
     def query(self, text: str, top_k: int = 20) -> List[Dict]:
@@ -210,6 +212,53 @@ class BM25Index:
             })
         return results
 
+    def query_by_file_hints(
+        self,
+        hints: List[str],
+        top_k: int = 20,
+    ) -> List[Dict]:
+        """Return chunks matched by filename/stem hints (pathless-safe)."""
+        if not hints or not self._chunks:
+            return []
+
+        score_by_idx: Dict[int, float] = defaultdict(float)
+        for raw_hint in hints:
+            hint = self._normalize_file_hint(raw_hint)
+            if not hint:
+                continue
+            stem = hint.rsplit(".", 1)[0] if "." in hint else hint
+            candidates = [(hint, 2.8)]
+            if stem and stem != hint:
+                candidates.append((stem, 1.9))
+            for term, weight in candidates:
+                for idx in self._file_lookup.get(term, set()):
+                    score_by_idx[idx] += weight
+
+        if not score_by_idx:
+            return []
+
+        ranked = sorted(
+            score_by_idx.items(),
+            key=lambda x: x[1],
+            reverse=True,
+        )[:top_k]
+
+        results: List[Dict] = []
+        for idx, score in ranked:
+            chunk = self._chunks[idx]
+            results.append({
+                "chunk_id": chunk.chunk_id,
+                "file_path": chunk.file_path,
+                "function_name": chunk.function_name,
+                "symbol_name": getattr(chunk, "symbol_name", ""),
+                "class_name": getattr(chunk, "class_name", ""),
+                "namespace": getattr(chunk, "namespace", ""),
+                "signature": getattr(chunk, "signature", ""),
+                "start_line": chunk.start_line,
+                "score": float(score),
+            })
+        return results
+
     def save(self, path: Path) -> None:
         """Persist index to disk using pickle.
 
@@ -224,6 +273,7 @@ class BM25Index:
                     "index": self._index,
                     "chunks": self._chunks,
                     "symbol_lookup": self._symbol_lookup,
+                    "file_lookup": self._file_lookup,
                 },
                 f,
             )
@@ -241,6 +291,7 @@ class BM25Index:
         self._index = data["index"]
         self._chunks = data["chunks"]
         self._symbol_lookup = data.get("symbol_lookup") or self._build_symbol_lookup(self._chunks)
+        self._file_lookup = data.get("file_lookup") or self._build_file_lookup(self._chunks)
         logger.info(
             "Loaded BM25 index from %s (%d chunks).", path, len(self._chunks)
         )
@@ -323,6 +374,28 @@ class BM25Index:
                 if candidate:
                     lookup[candidate].add(idx)
         return dict(lookup)
+
+    def _build_file_lookup(self, chunks: List) -> Dict[str, set[int]]:
+        """Build filename/stem -> chunk-index lookup for pathless hints."""
+        lookup: Dict[str, set[int]] = defaultdict(set)
+        for idx, chunk in enumerate(chunks):
+            file_path = str(getattr(chunk, "file_path", "")).replace("\\", "/")
+            if not file_path:
+                continue
+            base = file_path.rsplit("/", 1)[-1].lower()
+            stem = base.rsplit(".", 1)[0] if "." in base else base
+            if base:
+                lookup[base].add(idx)
+            if stem:
+                lookup[stem].add(idx)
+        return dict(lookup)
+
+    def _normalize_file_hint(self, hint: str) -> str:
+        """Normalize file hint text into lookup-compatible basename."""
+        value = (hint or "").strip().lower().strip("`'\"")
+        value = value.replace("\\", "/")
+        value = value.rsplit("/", 1)[-1]
+        return value
 
     def _normalize_symbol(self, symbol: str) -> str:
         """Normalize raw identifier text into a lookup key."""

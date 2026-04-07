@@ -38,6 +38,8 @@ class RetrievalResult:
     score: float           # fused score
     dense_score: float
     bm25_score: float
+    dense_raw_score: float = 0.0
+    bm25_raw_score: float = 0.0
     symbol_name: str = ""
     class_name: str = ""
     namespace: str = ""
@@ -148,9 +150,18 @@ class HybridRetriever:
                 parsed_log,
                 strict_pathless=strict_pathless,
             )
+        if mode == "hybrid":
+            fused = self._apply_sparse_anchor(
+                fused,
+                parsed_log=parsed_log,
+                strict_pathless=strict_pathless,
+            )
 
         # Sort descending by fused score, assign ranks.
-        fused.sort(key=lambda r: r.score, reverse=True)
+        fused.sort(
+            key=lambda r: (r.score, r.bm25_score, r.symbol_score, r.dense_score),
+            reverse=True,
+        )
 
         # --- file-path deduplication ---------------------------------------
         if deduplicate_files:
@@ -222,6 +233,14 @@ class HybridRetriever:
             r["chunk_id"]: n
             for r, n in zip(bm25_results, bm25_norm)
         }
+        dense_raw_map: Dict[str, float] = {
+            r["chunk_id"]: float(r.get("score", 0.0))
+            for r in dense_results
+        }
+        bm25_raw_map: Dict[str, float] = {
+            r["chunk_id"]: float(r.get("score", 0.0))
+            for r in bm25_results
+        }
 
         # Fuse scores for every unique chunk_id.
         all_ids = set(dense_map.keys()) | set(bm25_map.keys())
@@ -246,6 +265,8 @@ class HybridRetriever:
                 score=fused,
                 dense_score=d_score,
                 bm25_score=b_score,
+                dense_raw_score=dense_raw_map.get(cid, 0.0),
+                bm25_raw_score=bm25_raw_map.get(cid, 0.0),
                 symbol_score=0.0,
             ))
 
@@ -302,6 +323,8 @@ class HybridRetriever:
                 score=SOURCE_PATH_SCORE,
                 dense_score=SOURCE_PATH_SCORE,
                 bm25_score=0.0,
+                dense_raw_score=SOURCE_PATH_SCORE,
+                bm25_raw_score=0.0,
                 symbol_score=0.0,
             ))
         return results
@@ -570,3 +593,121 @@ class HybridRetriever:
             if len(parts) >= 3:
                 prefixes.add("/".join(parts[:3]))
         return sorted(prefixes)
+
+    def _apply_sparse_anchor(
+        self,
+        results: List[RetrievalResult],
+        parsed_log,
+        strict_pathless: bool = False,
+    ) -> List[RetrievalResult]:
+        """Prevent dense noise from suppressing strong lexical candidates."""
+        if not results:
+            return results
+        if parsed_log is None:
+            return results
+
+        anchor_weight = self._sparse_anchor_weight(parsed_log, strict_pathless=strict_pathless)
+        if anchor_weight <= 0.0:
+            return results
+        confidence = self._compute_lexical_confidence(
+            results,
+            parsed_log=parsed_log,
+            strict_pathless=strict_pathless,
+        )
+        confidence_threshold = self._lexical_confidence_threshold(
+            parsed_log,
+            strict_pathless=strict_pathless,
+        )
+        if confidence < confidence_threshold:
+            return results
+
+        effective_anchor_weight = min(
+            0.995,
+            anchor_weight * (0.75 + 0.25 * confidence),
+        )
+
+        for result in results:
+            if result.bm25_score <= 0.0:
+                continue
+            anchored = (
+                effective_anchor_weight * result.bm25_score
+                + (1.0 - effective_anchor_weight) * result.dense_score
+            )
+            if strict_pathless and result.symbol_score > 0.0:
+                anchored = min(1.0, anchored + 0.12 * result.symbol_score * confidence)
+            result.score = max(result.score, anchored)
+        return results
+
+    def _sparse_anchor_weight(self, parsed_log, strict_pathless: bool = False) -> float:
+        """Return BM25 anchor strength for hybrid reranking."""
+        error_type = getattr(parsed_log, "error_type", "unknown")
+        has_identifiers = bool(getattr(parsed_log, "identifiers", []))
+        has_stack = bool(getattr(parsed_log, "stack_frames", []))
+
+        if strict_pathless:
+            if error_type == "linker_error":
+                return 0.98 if has_identifiers else 0.92
+            if error_type in {"compiler_error", "include_error", "template_error", "build_system_error"}:
+                return 0.95 if has_identifiers else 0.90
+            if error_type in {"segfault", "asan_error"}:
+                return 0.92 if (has_identifiers or has_stack) else 0.86
+            if error_type == "runtime_exception":
+                return 0.86
+            return 0.0
+
+        if error_type in {"compiler_error", "include_error", "template_error", "build_system_error", "linker_error"}:
+            return 0.90 if has_identifiers else 0.84
+        if error_type in {"segfault", "asan_error"} and (has_identifiers or has_stack):
+            return 0.84
+        return 0.0
+
+    def _compute_lexical_confidence(
+        self,
+        results: List[RetrievalResult],
+        parsed_log,
+        strict_pathless: bool = False,
+    ) -> float:
+        """Estimate whether BM25 evidence is strong enough to dominate hybrid scoring."""
+        lexical_ranked = sorted(
+            results,
+            key=lambda r: (r.bm25_raw_score, r.bm25_score, r.symbol_score),
+            reverse=True,
+        )
+        top = lexical_ranked[0]
+        if top.bm25_raw_score <= 0.0 and top.bm25_score <= 0.0:
+            return 0.0
+
+        second = lexical_ranked[1] if len(lexical_ranked) > 1 else None
+        second_raw = second.bm25_raw_score if second is not None else 0.0
+        top_raw = max(top.bm25_raw_score, 1e-9)
+        relative_gap = max(0.0, (top_raw - max(second_raw, 0.0)) / top_raw)
+        relative_gap = min(1.0, relative_gap)
+
+        symbol_cap = 0.9 if strict_pathless else 0.75
+        symbol_signal = min(1.0, max(0.0, top.symbol_score) / max(symbol_cap, 1e-9))
+
+        has_identifiers = bool(getattr(parsed_log, "identifiers", []))
+        has_stack = bool(getattr(parsed_log, "stack_frames", []))
+        evidence_signal = 1.0 if (has_identifiers or has_stack) else 0.0
+
+        top_norm_signal = min(1.0, max(0.0, top.bm25_score))
+        confidence = (
+            0.35 * top_norm_signal
+            + 0.35 * relative_gap
+            + 0.20 * symbol_signal
+            + 0.10 * evidence_signal
+        )
+        return min(1.0, max(0.0, confidence))
+
+    def _lexical_confidence_threshold(self, parsed_log, strict_pathless: bool = False) -> float:
+        """Return the minimum lexical confidence required before sparse anchoring."""
+        error_type = getattr(parsed_log, "error_type", "unknown")
+        if strict_pathless:
+            if error_type in {"linker_error", "compiler_error", "include_error", "template_error"}:
+                return 0.52
+            if error_type in {"segfault", "asan_error"}:
+                return 0.48
+            return 0.50
+        if error_type in {"linker_error", "compiler_error", "include_error", "template_error"}:
+            return 0.58
+        return 0.62

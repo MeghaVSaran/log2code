@@ -4,6 +4,8 @@ from dataclasses import dataclass
 
 from src.evaluation.run_ablation import (
     SampleResult,
+    _collect_ground_truth_coverage,
+    _has_all_ground_truth_files,
     _to_strict_pathless_parsed,
     build_ablation_report,
     run_single_config,
@@ -145,3 +147,18 @@ def test_build_report_contains_strict_no_path_bucket():
     strict_bucket = report["by_source_path"]["strict_no_path"]["hybrid_no_path_boost"]
     assert strict_bucket["n"] == 1
     assert strict_bucket["recall_at_5"] == 1.0
+
+
+def test_ground_truth_coverage_helpers(tmp_path):
+    (tmp_path / "absl" / "base").mkdir(parents=True)
+    (tmp_path / "absl" / "base" / "ok.cc").touch()
+
+    present = {"relevant_files": ["absl/base/ok.cc"]}
+    missing = {"relevant_files": ["absl/base/missing.cc"]}
+
+    assert _has_all_ground_truth_files(present, tmp_path) is True
+    assert _has_all_ground_truth_files(missing, tmp_path) is False
+
+    in_repo, missing_paths = _collect_ground_truth_coverage([present, missing], tmp_path)
+    assert in_repo == 1
+    assert missing_paths["absl/base/missing.cc"] == 1

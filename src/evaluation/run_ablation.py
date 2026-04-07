@@ -160,6 +160,30 @@ def _ground_truth_rank(predictions: List[str], gt: List[str]) -> Optional[int]:
     return None
 
 
+def _has_all_ground_truth_files(item: Dict, repo_path: Path) -> bool:
+    """Return True when every ground-truth file exists under repo_path."""
+    gt_files = item.get("relevant_files", [])
+    return all((repo_path / rel).exists() for rel in gt_files)
+
+
+def _collect_ground_truth_coverage(
+    dataset: List[Dict],
+    repo_path: Path,
+) -> tuple[int, Counter]:
+    """Summarize how many dataset items are fully resolvable in the indexed repo."""
+    in_repo = 0
+    missing_paths: Counter = Counter()
+    for item in dataset:
+        gt = item.get("relevant_files", [])
+        missing = [rel for rel in gt if not (repo_path / rel).exists()]
+        if not missing:
+            in_repo += 1
+        else:
+            for rel in missing:
+                missing_paths[rel] += 1
+    return in_repo, missing_paths
+
+
 def run_single_config(
     config: Dict,
     dataset: List[Dict],
@@ -540,6 +564,12 @@ def main():
         help="Strip all path-like hints (source paths + slash-style file hints) "
              "before retrieval and report strict_no_path metrics.",
     )
+    parser.add_argument(
+        "--skip-missing-ground-truth",
+        action="store_true",
+        help="Exclude samples whose relevant_files do not exist under --repo "
+             "(recommended for fair same-repo evaluation).",
+    )
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.WARNING)
@@ -592,16 +622,7 @@ def main():
             print("No samples left after --repo-filter; exiting.", file=sys.stderr)
             sys.exit(1)
 
-    in_repo = 0
-    missing_paths: Counter = Counter()
-    for item in dataset:
-        gt = item.get("relevant_files", [])
-        missing = [rel for rel in gt if not (repo_path / rel).exists()]
-        if not missing:
-            in_repo += 1
-        else:
-            for rel in missing:
-                missing_paths[rel] += 1
+    in_repo, missing_paths = _collect_ground_truth_coverage(dataset, repo_path)
 
     if in_repo < len(dataset):
         print(
@@ -614,6 +635,19 @@ def main():
         )
         if top_missing:
             print(f"Top missing ground-truth paths: {top_missing}")
+
+    dropped_missing_gt = 0
+    if args.skip_missing_ground_truth:
+        before = len(dataset)
+        dataset = [item for item in dataset if _has_all_ground_truth_files(item, repo_path)]
+        dropped_missing_gt = before - len(dataset)
+        print(
+            f"Skipped {dropped_missing_gt} samples with missing ground-truth files "
+            f"(--skip-missing-ground-truth). Remaining: {len(dataset)}"
+        )
+        if not dataset:
+            print("No samples left after skipping missing ground-truth files; exiting.", file=sys.stderr)
+            sys.exit(1)
 
     # Load indices
     from src.indexing.vector_index import VectorIndex
@@ -670,6 +704,14 @@ def main():
     report = build_ablation_report(all_results)
     report["index_metadata"] = index_meta
     report["dense_retrieval_valid"] = dense_valid
+    report["dataset_info"] = {
+        "loaded_samples": len(dataset) + dropped_missing_gt,
+        "evaluated_samples": len(dataset),
+        "skipped_missing_ground_truth": dropped_missing_gt,
+        "repo_filter": args.repo_filter,
+        "strict_pathless": bool(args.strict_pathless),
+        "skip_missing_ground_truth": bool(args.skip_missing_ground_truth),
+    }
 
     # Output directory
     output_dir = Path(args.output_dir) if args.output_dir else Path("data")

@@ -629,3 +629,106 @@ class TestAdaptiveFusionWeights:
         _, sparse_normal = retriever._select_fusion_weights(parsed, strict_pathless=False)
         _, sparse_strict = retriever._select_fusion_weights(parsed, strict_pathless=True)
         assert sparse_strict > sparse_normal
+
+    def test_sparse_anchor_favors_lexical_top_candidate(self):
+        dense = [
+            {"chunk_id": "wrong.cpp::noise", "file_path": "wrong.cpp",
+             "function_name": "noise", "start_line": 1, "score": 0.95},
+            {"chunk_id": "good.cpp::target", "file_path": "good.cpp",
+             "function_name": "target", "start_line": 1, "score": 0.40},
+        ]
+        bm25 = [
+            {"chunk_id": "good.cpp::target", "file_path": "good.cpp",
+             "function_name": "target", "start_line": 1, "score": 8.0},
+            {"chunk_id": "wrong.cpp::noise", "file_path": "wrong.cpp",
+             "function_name": "noise", "start_line": 1, "score": 7.9},
+        ]
+        retriever = HybridRetriever(FakeVectorIndex(dense), FakeBM25Index(bm25))
+        parsed = parse_log("undefined reference to `target`")
+        results = retriever.retrieve(
+            FAKE_EMBEDDING,
+            parsed.query_text(),
+            top_k=2,
+            parsed_log=parsed,
+            strict_pathless=True,
+            deduplicate_files=False,
+        )
+        assert results[0].file_path == "good.cpp"
+
+    def test_confidence_gate_blocks_sparse_anchor_on_weak_lexical_signal(self):
+        retriever = HybridRetriever(FakeVectorIndex([]), FakeBM25Index([]))
+        parsed = parse_log("Segmentation fault")
+        rows = [
+            RetrievalResult(
+                rank=1,
+                chunk_id="good.cpp::target",
+                file_path="good.cpp",
+                function_name="target",
+                start_line=1,
+                score=0.40,
+                dense_score=0.40,
+                bm25_score=1.00,
+                dense_raw_score=0.40,
+                bm25_raw_score=10.00,
+                symbol_score=0.0,
+            ),
+            RetrievalResult(
+                rank=2,
+                chunk_id="wrong.cpp::noise",
+                file_path="wrong.cpp",
+                function_name="noise",
+                start_line=1,
+                score=0.91,
+                dense_score=0.91,
+                bm25_score=0.99,
+                dense_raw_score=0.91,
+                bm25_raw_score=9.95,
+                symbol_score=0.0,
+            ),
+        ]
+        anchored = retriever._apply_sparse_anchor(
+            rows,
+            parsed_log=parsed,
+            strict_pathless=True,
+        )
+        # With weak lexical confidence, gate should keep scores unchanged.
+        assert anchored[0].score == pytest.approx(0.40)
+        assert anchored[1].score == pytest.approx(0.91)
+
+    def test_confidence_gate_allows_sparse_anchor_on_strong_lexical_signal(self):
+        retriever = HybridRetriever(FakeVectorIndex([]), FakeBM25Index([]))
+        parsed = parse_log("undefined reference to `target`")
+        rows = [
+            RetrievalResult(
+                rank=1,
+                chunk_id="good.cpp::target",
+                file_path="good.cpp",
+                function_name="target",
+                start_line=1,
+                score=0.45,
+                dense_score=0.45,
+                bm25_score=1.00,
+                dense_raw_score=0.45,
+                bm25_raw_score=12.0,
+                symbol_score=0.55,
+            ),
+            RetrievalResult(
+                rank=2,
+                chunk_id="wrong.cpp::noise",
+                file_path="wrong.cpp",
+                function_name="noise",
+                start_line=1,
+                score=0.90,
+                dense_score=0.90,
+                bm25_score=0.20,
+                dense_raw_score=0.90,
+                bm25_raw_score=4.0,
+                symbol_score=0.0,
+            ),
+        ]
+        anchored = retriever._apply_sparse_anchor(
+            rows,
+            parsed_log=parsed,
+            strict_pathless=True,
+        )
+        assert anchored[0].score > 0.90
